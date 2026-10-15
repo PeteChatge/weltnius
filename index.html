@@ -247,6 +247,7 @@ async function reverseName(lat,lon){
   }catch{return {name:"",rural:null}}
 }
 const normLon=lon=>((+lon+540)%360+360)%360-180;
+const deriveQ=s=>((s||"").split("(")[0].split(",")[0]||"").trim();
 async function useCoords(lat,lon,save){
   lat=Math.max(-90,Math.min(90,+((+lat).toFixed(5))));lon=+normLon(lon).toFixed(5);
   $("#lat").value=lat;$("#lon").value=lon;
@@ -254,7 +255,7 @@ async function useCoords(lat,lon,save){
   const place=rev.name||`${lat}, ${lon}`;
   $("#place").value=place;lastPlace=place;
   if(rev.rural!==null){ruralFocus=rev.rural;store.set("weltnius_rural_v1",ruralFocus);$("#ruralBox").checked=ruralFocus}
-  if(save){pin={lat,lon,place};store.set("weltnius_pin_v1",pin);setMap(lat,lon,place);paint()}
+  if(save){pin={lat,lon,place,q:place};store.set("weltnius_pin_v1",pin);setMap(lat,lon,place);paint()}
 }
 const pinDialog=()=>document.getElementById("pinDialog");
 async function openPinDialog(){const d=pinDialog();if(!d.open){if(d.showModal)d.showModal();else d.setAttribute("open","")}await initMap(pin.lat,pin.lon);if(mapReady&&Lmap){Lmap.invalidateSize();setMap(pin.lat,pin.lon,pin.place)}}
@@ -264,12 +265,16 @@ $("#closePin").onclick=()=>{const d=pinDialog();if(d.close)d.close();else d.remo
 pinDialog().addEventListener("click",e=>{if(e.target===pinDialog())pinDialog().close()});
 let pin=store.get("weltnius_pin_v1",{lat:51.0504,lon:13.7373,place:"Dresden (Umland: Sachsen)"});
 pin.lon=normLon(pin.lon||0);pin.lat=Math.max(-90,Math.min(90,+pin.lat||0));
+if(!pin.q)pin.q=deriveQ(pin.place);
+const localQuery=()=>((pin.q||deriveQ(pin.place)||"").trim());
 $("#ruralBox").checked=ruralFocus;
 setMap(pin.lat,pin.lon,pin.place);$("#lat").value=pin.lat;$("#lon").value=pin.lon;$("#place").value=pin.place||"Dresden";
 let lastPlace=$("#place").value;
+const BIGCITY=["dresden","leipzig","chemnitz","berlin","hamburg","münchen","muenchen","köln","koeln","frankfurt","stuttgart","düsseldorf","duesseldorf","dortmund","essen","bremen","hannover","nürnberg","nuernberg","duisburg"];
 $("#setPin").onclick=async()=>{
   let lat=parseFloat((($("#lat").value)||"").replace(",",".")),lon=parseFloat((($("#lon").value)||"").replace(",","."));
   const placeRaw=(($("#place").value)||"").trim();
+  let q=deriveQ(placeRaw);
   if(placeRaw&&placeRaw!==lastPlace){
     const btn=$("#setPin");btn.textContent="Suche …";
     try{
@@ -277,16 +282,19 @@ $("#setPin").onclick=async()=>{
       const j=await r.json();
       if(!j||!j.length){alert("Ort nicht gefunden: "+placeRaw);return}
       lat=+j[0].lat;lon=+j[0].lon;$("#lat").value=lat.toFixed(4);$("#lon").value=lon.toFixed(4);
+      q=((j[0].display_name||placeRaw).split(",")[0]||placeRaw).trim();
       const t=(((j[0].type||"")+" "+(j[0].class||""))+"").toLowerCase();
       const rural=/village|hamlet|farm|isolated|countryside/.test(t)&&!/city|town|suburb|borough/.test(t);
-      if(rural||/city|town|suburb|borough/.test(t)){ruralFocus=rural;store.set("weltnius_rural_v1",ruralFocus);$("#ruralBox").checked=ruralFocus}
+      if(BIGCITY.includes(q.toLowerCase())){ruralFocus=false}
+      else if(rural||/city|town|suburb|borough/.test(t)){ruralFocus=rural}
+      store.set("weltnius_rural_v1",ruralFocus);$("#ruralBox").checked=ruralFocus;
     }catch(e){alert("Ortssuche gescheitert (Netz?). Tipp: Koordinaten gehen immer.");return}
     finally{btn.textContent="Pin setzen"}
   }
   if(!isFinite(lat)||!isFinite(lon))return alert("Bitte Koordinaten oder einen Ortsnamen eingeben.");
   lon=+normLon(lon).toFixed(5);lat=+((+lat).toFixed(5));
   lastPlace=placeRaw||`${lat}, ${lon}`;
-  pin={lat,lon,place:lastPlace};store.set("weltnius_pin_v1",pin);setMap(lat,lon,lastPlace);paint();
+  pin={lat,lon,place:lastPlace,q:q||deriveQ(lastPlace)};store.set("weltnius_pin_v1",pin);setMap(lat,lon,lastPlace);paint();
 };
 $("#ruralBox").onchange=e=>{ruralFocus=e.target.checked;store.set("weltnius_rural_v1",ruralFocus);setMap(pin.lat,pin.lon,pin.place);paint()};
 $("#cartoKey").value=cartoKey;
@@ -399,6 +407,14 @@ async function load(force){
     try{const xml=await fetchRSS(f,setStatus);const items=parseRSS(xml,f);out.push(...items)}
     catch(e){console.warn(e);errs.push(f.name+(f.optional?" (optional)":"")+": "+e.message)}
   }
+  /* Wochenblättle: Lokal-Suche zum erkannten Ort (fällt ein, wenn Medien schweigen) */
+  const lq=localQuery();
+  if(lq.length>1){
+    try{
+      const xml=await fetchRSS({name:"Wochenblättle · "+lq,url:`https://news.google.com/rss/search?q=${encodeURIComponent(lq+" Sachsen")}&hl=de&gl=DE&ceid=DE:de`},setStatus);
+      out.push(...parseRSS(xml,{name:`Wochenblättle · ${lq}`,type:"lokal"}).slice(0,12).map(it=>({...it,sec:"regional",_local:true})));
+    }catch(e){console.warn(e);errs.push("Wochenblättle · "+lq+": "+e.message)}
+  }
   for(const c of (CONFIG.ytChannels.regional||[])){
     try{const xml=await fetchRSS({name:"YouTube · "+c.name,url:`https://www.youtube.com/feeds/videos.xml?channel_id=${c.id}`},setStatus);out.push(...parseYT(xml,c.name))}
     catch(e){console.warn(e);errs.push("YouTube · "+c.name+": "+e.message)}
@@ -428,7 +444,7 @@ function paint(){
     if(q&&!(norm(it.title+" "+it.desc).includes(q)))continue;
     const tagHit=activeTags.length===0||activeTags.some(t=>norm(it.title+" "+it.desc).includes(norm(t)));
     // Themen-Tags gelten v.a. für regional; andere Blöcke nur filtern wenn Tag passt? Nein: global filtern wenn aktiv
-    if(!tagHit)continue;
+    if(!tagHit&&!it._local)continue;
     const a=ageDays(it.date);
     it._old=a>days*2; it._read=isRead;
     if(it._old&&!showOld)continue;
@@ -449,10 +465,10 @@ function paint(){
     const box=$(`#sec-${id} .list`);if(!box)continue;box.innerHTML="";
     const arr=bySec[id];
     if(!arr.length){box.innerHTML=`<div class="card"><p class="note">Nichts hier — Filter aktiv: ${activeTags.length?esc(activeTags.join(", ")):"keine Tags"}${$("#q").value?`, Suche „${esc($("#q").value)}"`:``}${onlyUnread?" · Modus: nur Ungelesene":""}. Sarkasmus-Modus: Das Widget hätte dir hier eine Meldung von vor 4 Monaten untergejubelt.</p></div>`;continue}
-    if(id==="regional"&&(regionalFallback||ruralFocus)){const h=document.createElement("div");h.className="card";h.innerHTML=`<p class="note">${ruralFocus?"🌾 Ländlicher Fokus aktiv: Umland-Themen (Landwirtschaft, Dorf, Forst) zuerst — Stadt-Interessen hinten. ":""}${regionalFallback?`📌 Regional-Ersatz: Tags (${esc(activeTags.join(", "))}) trafen nichts — neueste regionale Quellen eingeblendet statt Leere.`:""}</p>`;box.appendChild(h)}
+    if(id==="regional"&&(regionalFallback||ruralFocus||bySec.regional.some(it=>it._local))){const h=document.createElement("div");h.className="card";const nLoc=bySec.regional.filter(it=>it._local).length;h.innerHTML=`<p class="note">${ruralFocus?"🌾 Ländlicher Fokus aktiv: Umland-Themen (Landwirtschaft, Dorf, Forst) zuerst — Stadt-Interessen hinten. ":""}${nLoc?`📰 Wochenblättle · ${esc(localQuery())}: ${nLoc} Meldungen aus dem Umland. `:""}${regionalFallback?`📌 Regional-Ersatz: Tags (${esc(activeTags.join(", "))}) trafen nichts — neueste regionale Quellen eingeblendet statt Leere.`:""}</p>`;box.appendChild(h)}
     for(const it of arr){
       const d=document.createElement("div");d.className="card"+(it._read?" read":"");
-      const badge=it.type==="oerr"?'<span class="pill b-oerr">ÖRR/gelenkt</span>':it.type==="yt"?'<span class="pill b-yt">▶ YouTube</span>':'<span class="pill b-krit">kritisch</span>';
+      const badge=it.type==="oerr"?'<span class="pill b-oerr">ÖRR/gelenkt</span>':it.type==="yt"?'<span class="pill b-yt">▶ YouTube</span>':it.type==="lokal"?'<span class="pill b-oerr">📰 Wochenblättle</span>':'<span class="pill b-krit">kritisch</span>';
       const img=it.thumb?`<a href="${it.link}" target="_blank" rel="noopener"><img class="thumbimg" loading="lazy" src="${it.thumb}" alt=""></a>`:"";
       d.innerHTML=`<div class="meta">${badge}<span>${esc(it.feed)}</span><span>·</span><span>${it.date.toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</span>${it._old?'<span class="pill">archäologisch alt</span>':""}${it._read?'<span class="pill">gelesen · grau, aber klickbar</span>':'<span class="pill" style="border-color:var(--acc);color:var(--acc)">NEU · noch nie gezeigt</span>'}</div>${img}<h3><a href="${it.link}" target="_blank" rel="noopener">${esc(it.title)}</a></h3><p class="desc">${esc(it.desc)}</p><div class="actions"><button>Öffnen → als gelesen</button><a class="note" href="${it.link}" target="_blank" rel="noopener">Weiterlesen beim Verlag ↗</a></div>`;
       d.querySelector("button").onclick=ev=>{seen[it.k]=Date.now();store.set("weltnius_seen_v1",seen);ev.preventDefault();window.open(it.link,"_blank","noopener");paint()};
