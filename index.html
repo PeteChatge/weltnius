@@ -183,6 +183,10 @@ const CONFIG = {
   ytChannels: {
     regional:[{name:"NIUS",id:"UCQGqiGhMjc_p4lZEhSTb12g"},{name:"WELT Nachrichtensender",id:"UCZMsvbAhhRblVGXmEXW8TSA"}]
   },
+  /* Ortsblätter: erscheinen als feste Karte, sobald der Pin-Ort passt (erweiterbar) */
+  localPapers: [
+    {match:["königsbrück","laussnitz","laußnitz","neukirch"],name:"Königsbrücker Stadtanzeiger",url:"https://www.koenigsbruecker-stadtanzeiger.de/",note:"Amts- und Heimatblatt der Verwaltungsgemeinschaft Königsbrück, Laußnitz, Neukirch — monatlich, kostenfrei, als PDF-Onlineausgabe."}
+  ],
   yt: {
     regional:[["NIUS Kanal","https://www.youtube.com/results?search_query=nius"], ["WELT live","https://www.youtube.com/results?search_query=welt+live"]],
     eu:[["Euronews Deutsch","https://www.youtube.com/@euronewsde"]],
@@ -464,6 +468,7 @@ function paint(){
   for(const [id] of SECS){
     const box=$(`#sec-${id} .list`);if(!box)continue;box.innerHTML="";
     const arr=bySec[id];
+    if(id==="regional"){const lqN=localQuery().toLowerCase();(CONFIG.localPapers||[]).filter(p=>p.match.some(m=>lqN.includes(m))).forEach(p=>{const c=document.createElement("div");c.className="card";c.innerHTML=`<div class="meta"><span class="pill b-oerr">📰 Heimatblatt</span><span>${esc(p.name)}</span></div><h3><a href="${p.url}" target="_blank" rel="noopener">${esc(p.name)} – Online-Ausgabe</a></h3><p class="desc">${esc(p.note||"")}</p>`;box.appendChild(c)})}
     if(!arr.length){box.innerHTML=`<div class="card"><p class="note">Nichts hier — Filter aktiv: ${activeTags.length?esc(activeTags.join(", ")):"keine Tags"}${$("#q").value?`, Suche „${esc($("#q").value)}"`:``}${onlyUnread?" · Modus: nur Ungelesene":""}. Sarkasmus-Modus: Das Widget hätte dir hier eine Meldung von vor 4 Monaten untergejubelt.</p></div>`;continue}
     if(id==="regional"&&(regionalFallback||ruralFocus||bySec.regional.some(it=>it._local))){const h=document.createElement("div");h.className="card";const nLoc=bySec.regional.filter(it=>it._local).length;h.innerHTML=`<p class="note">${ruralFocus?"🌾 Ländlicher Fokus aktiv: Umland-Themen (Landwirtschaft, Dorf, Forst) zuerst — Stadt-Interessen hinten. ":""}${nLoc?`📰 Wochenblättle · ${esc(localQuery())}: ${nLoc} Meldungen aus dem Umland. `:""}${regionalFallback?`📌 Regional-Ersatz: Tags (${esc(activeTags.join(", "))}) trafen nichts — neueste regionale Quellen eingeblendet statt Leere.`:""}</p>`;box.appendChild(h)}
     for(const it of arr){
