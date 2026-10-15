@@ -175,6 +175,7 @@ const CONFIG = {
     {name:"Euronews DE", url:"https://de.euronews.com/rss?format=mrss", type:"oerr", block:["eu","hot","asia"]},
     {name:"Sächsische Zeitung (gelenkt, optional)", url:"https://www.saechsische.de/rss", type:"oerr", optional:true, block:["regional"]},
     {name:"Katapult Sachsen (kritisch)", url:"https://katapult-sachsen.de/feed", type:"kritisch", block:["regional"]},
+    {name:"Freie Presse Erzgebirge", url:"https://www.freiepresse.de/erzgebirge/feed.atom", type:"oerr", block:["regional"]},
     {name:"Tichys Einblick", url:"https://www.tichyseinblick.de/feed/", type:"kritisch", block:["regional","eu","usa","ru","cn","hot"]},
     {name:"NIUS (optional, oft geblockt)", url:"https://nius.de/feed", type:"kritisch", optional:true, block:["regional","eu","usa","hot"]},
     {name:"Welt", url:"https://www.welt.de/feeds/latest.rss", type:"kritisch", block:["regional","eu","usa","ru","cn","hot","asia"]},
@@ -364,6 +365,16 @@ function demoArticles(){
 }
 function parseRSS(xml,feed){
   const doc=new DOMParser().parseFromString(xml,"text/xml");
+  const atom=[...doc.getElementsByTagName("entry")];
+  if(atom.length&&!doc.querySelector("item")){
+    const cutDesc=d=>{d=(d||"").replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim();if(d.length>1050){const c=d.slice(0,1050);const m=c.match(/.*[.!?…]["»“”']?\s/s);d=(m?m[0]:c).trim()+" …"}return d};
+    return atom.slice(0,40).map(en=>{
+      const t=tag=>{const n=en.getElementsByTagName(tag)[0];return n?n.textContent.trim():""};
+      const linkEl=en.querySelector('link[rel="alternate"]')||en.querySelector("link");
+      let d=new Date(t("published")||t("updated"));if(isNaN(d))d=new Date();
+      return {title:t("title")||"(ohne Titel)",link:linkEl?linkEl.getAttribute("href"):"",desc:cutDesc(t("summary")||t("content")),date:d,feed:feed.name,type:feed.type};
+    }).filter(x=>x.title&&x.link);
+  }
   const items=[...doc.querySelectorAll("item")].slice(0,40);
   return items.map(it=>{
     const g=t=>it.querySelector(t)?.textContent?.trim()||"";
@@ -376,7 +387,8 @@ function parseRSS(xml,feed){
     return {title:g("title")||"(ohne Titel)",link,desc,date:d,feed:feed.name,type:feed.type};
   }).filter(x=>x.title&&x.link);
 }
-const REGIONAL_FEEDS=["MDR Sachsen","Sächsische Zeitung (gelenkt, optional)","Katapult Sachsen (kritisch)"];
+const REGIONAL_FEEDS=["MDR Sachsen","Sächsische Zeitung (gelenkt, optional)","Katapult Sachsen (kritisch)","Freie Presse Erzgebirge"];
+const SAXON_RE=/sachsen|dresden|leipzig|chemnitz|bautzen|görlitz|goerlitz|meißen|meissen|erzgebirge|lausitz|vogtland|zwickau|pirna|kamenz|königsbrück|koenigsbrueck|pulsnitz|bischofswerda|rödertal|roedertal/i;
 function parseYT(xml,ch){
   const doc=new DOMParser().parseFromString(xml,"text/xml");
   const pick=(el,tag)=>{const n=el.getElementsByTagName(tag)[0];return n?n.textContent.trim():""};
@@ -468,7 +480,7 @@ function paint(){
   for(const [id] of SECS){
     const box=$(`#sec-${id} .list`);if(!box)continue;box.innerHTML="";
     const arr=bySec[id];
-    if(id==="regional"){const lqN=localQuery().toLowerCase();(CONFIG.localPapers||[]).filter(p=>p.match.some(m=>lqN.includes(m))).forEach(p=>{const c=document.createElement("div");c.className="card";c.innerHTML=`<div class="meta"><span class="pill b-oerr">📰 Heimatblatt</span><span>${esc(p.name)}</span></div><h3><a href="${p.url}" target="_blank" rel="noopener">${esc(p.name)} – Online-Ausgabe</a></h3><p class="desc">${esc(p.note||"")}</p>`;box.appendChild(c)})}
+    if(id==="regional"){const lqN=localQuery().toLowerCase();const saxon=SAXON_RE.test((pin.place||"")+" "+localQuery());(CONFIG.localPapers||[]).filter(p=>saxon||p.match.some(m=>lqN.includes(m))).forEach(p=>{const c=document.createElement("div");c.className="card";c.innerHTML=`<div class="meta"><span class="pill b-oerr">📰 Heimatblatt</span><span>${esc(p.name)}</span></div><h3><a href="${p.url}" target="_blank" rel="noopener">${esc(p.name)} – Online-Ausgabe</a></h3><p class="desc">${esc(p.note||"")}</p>`;box.appendChild(c)})}
     if(!arr.length){box.innerHTML=`<div class="card"><p class="note">Nichts hier — Filter aktiv: ${activeTags.length?esc(activeTags.join(", ")):"keine Tags"}${$("#q").value?`, Suche „${esc($("#q").value)}"`:``}${onlyUnread?" · Modus: nur Ungelesene":""}. Sarkasmus-Modus: Das Widget hätte dir hier eine Meldung von vor 4 Monaten untergejubelt.</p></div>`;continue}
     if(id==="regional"&&(regionalFallback||ruralFocus||bySec.regional.some(it=>it._local))){const h=document.createElement("div");h.className="card";const nLoc=bySec.regional.filter(it=>it._local).length;h.innerHTML=`<p class="note">${ruralFocus?"🌾 Ländlicher Fokus aktiv: Umland-Themen (Landwirtschaft, Dorf, Forst) zuerst — Stadt-Interessen hinten. ":""}${nLoc?`📰 Wochenblättle · ${esc(localQuery())}: ${nLoc} Meldungen aus dem Umland. `:""}${regionalFallback?`📌 Regional-Ersatz: Tags (${esc(activeTags.join(", "))}) trafen nichts — neueste regionale Quellen eingeblendet statt Leere.`:""}</p>`;box.appendChild(h)}
     for(const it of arr){
