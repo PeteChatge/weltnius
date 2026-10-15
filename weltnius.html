@@ -218,7 +218,7 @@ async function initMap(lat,lon){
   try{
     await leafletAssets();
     Lmap=L.map("map").setView([lat,lon],11);
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(Lmap);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{maxZoom:19,subdomains:"abcd",attribution:"© OpenStreetMap-Mitwirkende © CARTO"}).addTo(Lmap);
     Lmarker=L.marker([lat,lon],{draggable:true}).addTo(Lmap);
     Lmarker.on("dragend",()=>{const p=Lmarker.getLatLng();useCoords(p.lat,p.lng,true)});
     Lmap.on("click",e=>useCoords(e.latlng.lat,e.latlng.lng,true));
