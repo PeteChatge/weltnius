@@ -48,6 +48,10 @@ button.active{outline:2px solid var(--acc)}
 .spin{display:inline-block;animation:sp 1s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}
 #exportBtn{background:#e8710a;border-color:#e8710a;color:#fff;font-weight:700;box-shadow:0 0 10px rgba(232,113,10,.55)}
 #exportBtn:hover{background:#f5821f}
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--bg2);color:var(--txt);padding:6px;max-width:min(600px,94vw);width:600px}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+dialog .map{width:100%;border:1px solid var(--line);border-radius:12px}
+@media(max-width:700px){dialog{max-width:96vw;width:96vw}}
 /* kein Seitwärtsscrollen (Chrome): Gitter-Kinder dürfen schrumpfen, nichts ragt raus */
 html,body{overflow-x:clip}
 @supports not (overflow:clip){html,body{overflow-x:hidden}}
@@ -100,6 +104,7 @@ a.ytlink small{color:var(--mut);font-size:.72rem;padding:0 8px 6px}
 <p class="garden" id="garden">Die bunte Neubepflanzung des Nachrichten-Gartens</p>
 <div class="ticker" role="marquee" aria-label="Ticker: Zeitungsverlage in der Krise"><div class="pulse-line"></div><div class="ticker-view"><span class="ticker-track">+++ TICKER +++ Kleine Zeitungsverlage vor Besitz-Übernahme durch staatliche Medienkonzerne +++ Dresdner Lokalzeitungen in der Krise — <a href="https://taz.de/Dresdner-Lokalzeitungen-in-der-Krise/!5985680/" target="_blank" rel="noopener">taz.de/Dresdner-Lokalzeitungen-in-der-Krise</a> +++ Wer kauft die Lokalstimme? WELTNIUS bleibt lesbar statt verkäuflich +++ Regional zuerst: MDR · Sächsische Zeitung · Katapult Sachsen +++&nbsp;&nbsp;&nbsp;+++ TICKER +++ Kleine Zeitungsverlage vor Besitz-Übernahme durch staatliche Medienkonzerne +++ Dresdner Lokalzeitungen in der Krise — <a href="https://taz.de/Dresdner-Lokalzeitungen-in-der-Krise/!5985680/" target="_blank" rel="noopener">taz.de/Dresdner-Lokalzeitungen-in-der-Krise</a> +++ Wer kauft die Lokalstimme? WELTNIUS bleibt lesbar statt verkäuflich +++ Regional zuerst: MDR · Sächsische Zeitung · Katapult Sachsen +++&nbsp;&nbsp;&nbsp;</span></div><div class="pulse-line"></div></div>
 <div class="bar">
+<button id="openPinTop" class="ghost" title="Region für Karte und Regional-Fokus wählen">📍 Region</button>
 <input type="text" id="q" placeholder="Suche (z.B. Dresden, Haushalt, Klima) …" size="28">
 <button id="startBtn" class="ghost" title="Suche/Tags anwenden und zum Feed springen">▶ Start</button>
 <button id="onlyUnread" class="ghost active">Nur Ungelesene</button>
@@ -114,6 +119,16 @@ a.ytlink small{color:var(--mut);font-size:.72rem;padding:0 8px 6px}
 <div class="bar" id="tagbar" title="Themen-Lenkung: 4 fix + 3 frei"></div>
 <div class="bar"><input type="text" id="customTags" placeholder="3 Extra-Tags, Komma-getrennt (z.B. Haushalt, Polizei, Energie)" size="46"><button id="saveTags" class="ghost">Tags speichern</button></div>
 </div></header>
+<dialog id="pinDialog" aria-label="Region wählen">
+<div class="card" style="border:0;margin:0">
+<h3>🗺️ Region wählen <span class="pill">für dich + geteilte HTML</span></h3>
+<iframe class="map" id="map" style="height:280px" src="https://www.openstreetmap.org/export/embed.html?bbox=13.4%2C50.9%2C14.1%2C51.25&layer=mapnik&marker=51.0504%2C13.7373"></iframe>
+<p class="note">Default: Dresden (51.0504, 13.7373), Umland = Sachsen. Pin per Koordinaten änderbar, wird gespeichert und in den Export übernommen.</p>
+<input type="text" id="lat" placeholder="Breite 51.0504" size="12"> <input type="text" id="lon" placeholder="Länge 13.7373" size="12"> <input type="text" id="place" placeholder="Ortsname (z.B. Dresden)" size="14">
+<div class="actions"><button id="setPin">Pin setzen</button><button id="resetPin" class="ghost">Dresden-Reset</button><button id="closePin" class="ghost">Schließen ✓</button></div>
+<p class="note" id="pinLabel"></p>
+</div>
+</dialog>
 <div class="wrap lists-wide"><div class="grid">
 <div id="feed">
 <section class="block" id="sec-regional"><h2>📍 Regional — Dresden + Sachsen <span class="pill">Migration · Rüstung · Umwelt · Finanz-/Politikskandale</span></h2><div class="ytbox" data-yt="regional"></div><div class="list"></div></section>
@@ -125,13 +140,10 @@ a.ytlink small{color:var(--mut);font-size:.72rem;padding:0 8px 6px}
 <section class="block" id="sec-asia"><h2>🌏 6) Asien-Ozeanien — Korea · Japan · AU/NZ/Pazifik</h2><div class="ytbox" data-yt="asia"></div><div class="list"></div></section>
 <section class="block" id="sec-rest"><h2>🧺 Fundstücke — passt in kein Schema, aber zu schade fürs Widget-Nirvana</h2><div class="list"></div></section>
 </div>
-<div><div class="card">
-<h3>🗺️ Fokus-Pin (Seitenkopf-Karte)</h3>
-<iframe class="map" id="map" src="https://www.openstreetmap.org/export/embed.html?bbox=13.4%2C50.9%2C14.1%2C51.25&layer=mapnik&marker=51.0504%2C13.7373"></iframe>
-<p class="note">Default: Dresden (51.0504, 13.7373), Umland = Sachsen. Pin per Koordinaten änderbar, wird gespeichert.</p>
-<input type="text" id="lat" placeholder="Breite 51.0504" size="12"> <input type="text" id="lon" placeholder="Länge 13.7373" size="12"> <input type="text" id="place" placeholder="Ortsname (z.B. Dresden)" size="14">
-<div class="actions"><button id="setPin">Pin setzen</button><button id="resetPin" class="ghost">Dresden-Reset</button></div>
-<p class="note" id="pinLabel"></p>
+<div><div class="card" id="pinCardInline">
+<h3>🗺️ Fokus-Pin</h3>
+<p class="note" id="pinLabelShort"></p>
+<div class="actions"><button id="openPin" class="ghost">📍 Region wählen</button></div>
 </div>
 <div class="card"><h3>⚖️ Quellen</h3><p class="note"><span class="pill b-oerr">ÖRR</span><span class="pill b-krit">kritisch</span><span class="pill b-yt">▶ YT</span></p><div class="actions" id="secToggle"></div></div>
 <div class="card"><h3>📡 Status</h3><p class="note" id="status">Bereit.</p></div>
@@ -193,7 +205,11 @@ function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;")}
 if(store.get("weltnius_theme_v1","dark")==="light")document.documentElement.dataset.theme="light";
 $("#theme").onclick=()=>{const h=document.documentElement;h.dataset.theme=h.dataset.theme==="dark"?"light":"dark";store.set("weltnius_theme_v1",h.dataset.theme)};
 /* pin */
-function setMap(lat,lon,place){$("#map").src=`https://www.openstreetmap.org/export/embed.html?bbox=${lon-0.35}%2C${lat-0.15}%2C${lon+0.35}%2C${lat+0.15}&layer=mapnik&marker=${lat}%2C${lon}`;$("#pinLabel").textContent=`Fokus: ${place||""} (${lat}, ${lon}) · Umland mitgedacht.`}
+function setMap(lat,lon,place){$("#map").src=`https://www.openstreetmap.org/export/embed.html?bbox=${lon-0.35}%2C${lat-0.15}%2C${lon+0.35}%2C${lat+0.15}&layer=mapnik&marker=${lat}%2C${lon}`;const t=`Fokus: ${place||""} (${lat}, ${lon}) · Umland mitgedacht.`;$("#pinLabel").textContent=t;const s=$("#pinLabelShort");if(s)s.textContent=t}
+const pinDialog=()=>document.getElementById("pinDialog");
+$("#openPinTop").onclick=()=>{const d=pinDialog();if(d.showModal)d.showModal();else d.setAttribute("open","")};
+$("#openPin").onclick=()=>{const d=pinDialog();if(d.showModal)d.showModal();else d.setAttribute("open","")};
+$("#closePin").onclick=()=>{const d=pinDialog();if(d.close)d.close();else d.removeAttribute("open")};
 let pin=store.get("weltnius_pin_v1",{lat:51.0504,lon:13.7373,place:"Dresden (Umland: Sachsen)"});
 setMap(pin.lat,pin.lon,pin.place);$("#lat").value=pin.lat;$("#lon").value=pin.lon;$("#place").value="Dresden";
 $("#setPin").onclick=()=>{const lat=parseFloat($("#lat").value),lon=parseFloat($("#lon").value);if(!isFinite(lat)||!isFinite(lon))return alert("Bitte gültige Koordinaten.");pin={lat,lon,place:$("#place").value||"Custom"};store.set("weltnius_pin_v1",pin);setMap(lat,lon,pin.place)};
@@ -375,6 +391,7 @@ $("#exportBtn").onclick=()=>{
     const seed=`<script>try{(function(s){var k=function(x){return "weltnius_"+x};var put=function(key,val){try{localStorage.setItem(k(key),JSON.stringify(val))}catch(e){}};put("seen_v1",s.seen||{});put("tags_on_v1",s.activeTags||[]);put("custom_v1",s.customTags||[]);put("onlyUnread_v1",s.onlyUnread);put("days_v1",s.days||7);put("hiddenSecs_v1",s.hiddenSecs||[]);put("theme_v1",s.theme||"dark");put("pin_v1",s.pin||{});put("tickSecs_v1",s.tickSecs||45);put("tickPaused_v1",!!s.tickPaused);})(JSON.parse(${JSON.stringify(snapJson)}))}catch(e){}<\/script>`;
     let html="<!DOCTYPE html>\n"+document.documentElement.outerHTML;
     html=html.replace(/<button id="reload"[^>]*>.*?<\/button>/s,'<button id="reload">↻ Neu laden</button>');
+    html=html.replace(/<dialog([^>]*) open(="")?/, '<dialog$1');
     html=html.replace("</body>",seed+"</body>");
     const blob=new Blob([html],{type:"text/html;charset=utf-8"});
     const a=document.createElement("a");const d=new Date();
