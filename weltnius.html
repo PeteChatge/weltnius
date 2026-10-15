@@ -48,6 +48,7 @@ button.active{outline:2px solid var(--acc)}
 .spin{display:inline-block;animation:sp 1s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}
 #exportBtn{background:#e8710a;border-color:#e8710a;color:#fff;font-weight:700;box-shadow:0 0 10px rgba(232,113,10,.55)}
 #exportBtn:hover{background:#f5821f}
+#map{position:relative;z-index:0}
 dialog{border:1px solid var(--line);border-radius:14px;background:var(--bg2);color:var(--txt);padding:6px;max-width:min(600px,94vw);width:600px}
 dialog::backdrop{background:rgba(0,0,0,.6)}
 dialog .map{width:100%;border:1px solid var(--line);border-radius:12px}
@@ -72,6 +73,7 @@ img{max-width:100%;height:auto}
   #tagbar{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin}
   .tagbtn{font-size:.72rem;padding:3px 8px;white-space:nowrap;flex:0 0 auto}
   #customTags{flex:1 1 auto;min-width:0}
+  #mapWrap #map{height:220px}
   .tblabel{display:none}
   button{padding:6px 9px;font-size:.82rem}
   iframe.map{height:140px}
@@ -122,7 +124,9 @@ a.ytlink small{color:var(--mut);font-size:.72rem;padding:0 8px 6px}
 <dialog id="pinDialog" aria-label="Region wählen">
 <div class="card" style="border:0;margin:0">
 <h3>🗺️ Region wählen <span class="pill">für dich + geteilte HTML</span></h3>
-<iframe class="map" id="map" style="height:280px" src="https://www.openstreetmap.org/export/embed.html?bbox=13.4%2C50.9%2C14.1%2C51.25&layer=mapnik&marker=51.0504%2C13.7373"></iframe>
+<div id="mapWrap"><div id="map" class="map" style="height:280px"></div></div>
+<p class="note">Karte antippen setzt den Pin sofort (auch per Finger) — ideal wenn die nächste Großstadt weit weg ist. Oder Ortsnamen/Koordinaten unten eingeben.</p>
+<label class="note"><input type="checkbox" id="ruralBox"> 🌾 Ländlicher Fokus (nur Umland: Landwirtschaft, Dorf, Forst statt Stadt-Themen)</label>
 <p class="note">Ortsnamen (z.B. Leipzig) oder Koordinaten eingeben, dann Pin setzen. Klick neben das Fenster schließt ohne Änderung.</p>
 <input type="text" id="lat" placeholder="Breite 51.0504" size="12"> <input type="text" id="lon" placeholder="Länge 13.7373" size="12"> <input type="text" id="place" placeholder="Ortsname (z.B. Dresden)" size="14">
 <div class="actions"><button id="setPin">Pin setzen</button><button id="resetPin" class="ghost">Dresden-Reset</button><button id="closePin" class="ghost">Schließen ✓</button></div>
@@ -153,7 +157,7 @@ a.ytlink small{color:var(--mut);font-size:.72rem;padding:0 8px 6px}
 /* ============ CONFIG — hier editieren ============ */
 const CONFIG = {
   sections: {
-    regional: {keywords:["dresden","sachsen","leipzig","chemnitz"," Bautzen","görlitz","meissen","erzgebirge","mdr"]},
+    regional: {keywords:["dresden","sachsen","leipzig","chemnitz"," Bautzen","görlitz","meissen","erzgebirge","mdr","landwirtschaft","agrar","ernte","dorf","forst","jagd","bauer"]},
     eu: {keywords:[" eu ","brüssel","strassburg","europaparlament","europäische union","von der leyen","euronews"]},
     usa: {keywords:["usa","washington","trump","biden","weisses haus","white house","us-wahl"]},
     ru: {keywords:["russland","moskau","putin","kreml"]},
@@ -204,31 +208,79 @@ function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;")}
 /* theme */
 if(store.get("weltnius_theme_v1","dark")==="light")document.documentElement.dataset.theme="light";
 $("#theme").onclick=()=>{const h=document.documentElement;h.dataset.theme=h.dataset.theme==="dark"?"light":"dark";store.set("weltnius_theme_v1",h.dataset.theme)};
-/* pin */
-function setMap(lat,lon,place){$("#map").src=`https://www.openstreetmap.org/export/embed.html?bbox=${lon-0.35}%2C${lat-0.15}%2C${lon+0.35}%2C${lat+0.15}&layer=mapnik&marker=${lat}%2C${lon}`;const t=`Fokus: ${place||""} (${lat}, ${lon}) · Umland mitgedacht.`;$("#pinLabel").textContent=t;const s=$("#pinLabelShort");if(s)s.textContent=t}
+/* pin + Karte (Leaflet interaktiv per Finger, Fallback: OSM-iFrame) */
+const RURAL_KW=["landwirtschaft","agrar","ernte","bauer","bäuer","dorf","dörfer","ländlich","forst","wald","jagd","feld","milch","tierhaltung","biogas","landwirt","acker","weide"];
+let ruralFocus=!!store.get("weltnius_rural_v1",false);
+let Lmap=null,Lmarker=null,mapReady=false;
+function leafletAssets(){return new Promise((res,rej)=>{if(window.L)return res(true);const l=document.createElement("link");l.rel="stylesheet";l.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";document.head.appendChild(l);const s=document.createElement("script");s.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";s.onload=()=>res(true);s.onerror=()=>rej(new Error("leaflet"));document.head.appendChild(s)})}
+async function initMap(lat,lon){
+  if(mapReady)return;
+  try{
+    await leafletAssets();
+    Lmap=L.map("map").setView([lat,lon],11);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(Lmap);
+    Lmarker=L.marker([lat,lon],{draggable:true}).addTo(Lmap);
+    Lmarker.on("dragend",()=>{const p=Lmarker.getLatLng();useCoords(p.lat,p.lng,true)});
+    Lmap.on("click",e=>useCoords(e.latlng.lat,e.latlng.lng,true));
+    mapReady=true;setMap(pin.lat,pin.lon,pin.place);
+  }catch(e){
+    document.getElementById("mapWrap").innerHTML=`<iframe class="map" id="mapFrame" style="height:280px" src="https://www.openstreetmap.org/export/embed.html?bbox=${lon-0.35}%2C${lat-0.15}%2C${lon+0.35}%2C${lat+0.15}&layer=mapnik&marker=${lat}%2C${lon}"></iframe>`;
+    setMap(pin.lat,pin.lon,pin.place);
+  }
+}
+function setMap(lat,lon,place){
+  if(mapReady&&Lmap){Lmap.setView([lat,lon],Math.max(Lmap.getZoom(),11));Lmarker.setLatLng([lat,lon])}
+  else{const f=document.getElementById("mapFrame");if(f)f.src=`https://www.openstreetmap.org/export/embed.html?bbox=${lon-0.35}%2C${lat-0.15}%2C${lon+0.35}%2C${lat+0.15}&layer=mapnik&marker=${lat}%2C${lon}`}
+  const t=`Fokus: ${place||""} (${(+lat).toFixed(4)}, ${(+lon).toFixed(4)}) · Umland mitgedacht.`;$("#pinLabel").textContent=t;const s=$("#pinLabelShort");if(s)s.textContent=t+(ruralFocus?" 🌾 ländlich":"");
+}
+async function reverseName(lat,lon){
+  try{const r=await fetchWithTimeout(`https://nominatim.openstreetmap.org/reverse?format=json&accept-language=de&lat=${lat}&lon=${lon}`);
+    const j=await r.json();const a=j.address||{};
+    const name=a.village||a.hamlet||a.town||a.city||a.municipality||a.county||"";
+    const t=((j.addresstype||j.type||"")+"").toLowerCase();
+    return {name, rural:["village","hamlet","farm","isolated_dwelling"].includes(t)||!!((a.village||a.hamlet)&&!a.city&&!a.town)};
+  }catch{return {name:"",rural:null}}
+}
+async function useCoords(lat,lon,save){
+  lat=+((+lat).toFixed(5));lon=+((+lon).toFixed(5));
+  $("#lat").value=lat;$("#lon").value=lon;
+  const rev=await reverseName(lat,lon);
+  const place=rev.name||`${lat}, ${lon}`;
+  $("#place").value=place;lastPlace=place;
+  if(rev.rural!==null){ruralFocus=rev.rural;store.set("weltnius_rural_v1",ruralFocus);$("#ruralBox").checked=ruralFocus}
+  if(save){pin={lat,lon,place};store.set("weltnius_pin_v1",pin);setMap(lat,lon,place);paint()}
+}
 const pinDialog=()=>document.getElementById("pinDialog");
 $("#openPinTop").onclick=()=>{const d=pinDialog();if(d.showModal)d.showModal();else d.setAttribute("open","")};
 $("#openPin").onclick=()=>{const d=pinDialog();if(d.showModal)d.showModal();else d.setAttribute("open","")};
 $("#closePin").onclick=()=>{const d=pinDialog();if(d.close)d.close();else d.removeAttribute("open")};
 pinDialog().addEventListener("click",e=>{if(e.target===pinDialog())pinDialog().close()});
 let pin=store.get("weltnius_pin_v1",{lat:51.0504,lon:13.7373,place:"Dresden (Umland: Sachsen)"});
-setMap(pin.lat,pin.lon,pin.place);$("#lat").value=pin.lat;$("#lon").value=pin.lon;$("#place").value="Dresden";
+$("#ruralBox").checked=ruralFocus;
+setMap(pin.lat,pin.lon,pin.place);$("#lat").value=pin.lat;$("#lon").value=pin.lon;$("#place").value=pin.place||"Dresden";
+let lastPlace=$("#place").value;
+initMap(pin.lat,pin.lon);
 $("#setPin").onclick=async()=>{
-  let lat=parseFloat(($("#lat").value||"").replace(",",".")),lon=parseFloat(($("#lon").value||"").replace(",","."));
-  const place=($("#place").value||"").trim();
-  if(!isFinite(lat)||!isFinite(lon)){
-    if(!place)return alert("Bitte Koordinaten (z.B. 51.05, 13.74) oder einen Ortsnamen (z.B. Leipzig) eingeben.");
+  let lat=parseFloat((($("#lat").value)||"").replace(",",".")),lon=parseFloat((($("#lon").value)||"").replace(",","."));
+  const placeRaw=(($("#place").value)||"").trim();
+  if(placeRaw&&placeRaw!==lastPlace){
     const btn=$("#setPin");btn.textContent="Suche …";
     try{
-      const r=await fetchWithTimeout("https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=de&q="+encodeURIComponent(place));
+      const r=await fetchWithTimeout("https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=de&q="+encodeURIComponent(placeRaw));
       const j=await r.json();
-      if(!j||!j.length){alert("Ort nicht gefunden: "+place);return}
+      if(!j||!j.length){alert("Ort nicht gefunden: "+placeRaw);return}
       lat=+j[0].lat;lon=+j[0].lon;$("#lat").value=lat.toFixed(4);$("#lon").value=lon.toFixed(4);
+      const t=(((j[0].type||"")+" "+(j[0].class||""))+"").toLowerCase();
+      const rural=/village|hamlet|farm|isolated|countryside/.test(t)&&!/city|town|suburb|borough/.test(t);
+      if(rural||/city|town|suburb|borough/.test(t)){ruralFocus=rural;store.set("weltnius_rural_v1",ruralFocus);$("#ruralBox").checked=ruralFocus}
     }catch(e){alert("Ortssuche gescheitert (Netz?). Tipp: Koordinaten gehen immer.");return}
     finally{btn.textContent="Pin setzen"}
   }
-  pin={lat,lon,place:place||`${lat}, ${lon}`};store.set("weltnius_pin_v1",pin);setMap(lat,lon,pin.place);
+  if(!isFinite(lat)||!isFinite(lon))return alert("Bitte Koordinaten oder einen Ortsnamen eingeben.");
+  lastPlace=placeRaw||`${lat}, ${lon}`;
+  pin={lat,lon,place:lastPlace};store.set("weltnius_pin_v1",pin);setMap(lat,lon,lastPlace);paint();
 };
+$("#ruralBox").onchange=e=>{ruralFocus=e.target.checked;store.set("weltnius_rural_v1",ruralFocus);setMap(pin.lat,pin.lon,pin.place);paint()};
 $("#resetPin").onclick=()=>{pin={lat:51.0504,lon:13.7373,place:"Dresden (Umland: Sachsen)"};store.set("weltnius_pin_v1",pin);setMap(pin.lat,pin.lon,pin.place)};
 /* tags */
 function allTags(){return [...CONFIG.topicTags,...customTags.filter(Boolean)]}
@@ -369,6 +421,8 @@ function paint(){
   }
   // Sort: ungelesene zuerst, dann neueste; alte ans Ende
   for(const k in bySec)bySec[k].sort((a,b)=>(a._read-b._read)||((a._old?1e15:0)-(b._old?1e15:0))||(b.date-a.date));
+  // Ländlicher Fokus: Umland-Themen (Agrar, Dorf, Forst) zuerst in Regional
+  if(ruralFocus&&bySec.regional.length){const R=t=>RURAL_KW.some(k=>norm(t).includes(k));bySec.regional.sort((a,b)=>(R(b.title+" "+b.desc)-R(a.title+" "+a.desc))||(a._read-b._read)||(b.date-a.date))}
   // Regional-Garantie: Tags dürfen die Region nie leer fegen — Fallback ohne Tag-Filter
   let regionalFallback=false;
   if(!bySec.regional.length){
@@ -380,7 +434,7 @@ function paint(){
     const box=$(`#sec-${id} .list`);if(!box)continue;box.innerHTML="";
     const arr=bySec[id];
     if(!arr.length){box.innerHTML=`<div class="card"><p class="note">Nichts hier — Filter aktiv: ${activeTags.length?esc(activeTags.join(", ")):"keine Tags"}${$("#q").value?`, Suche „${esc($("#q").value)}"`:``}${onlyUnread?" · Modus: nur Ungelesene":""}. Sarkasmus-Modus: Das Widget hätte dir hier eine Meldung von vor 4 Monaten untergejubelt.</p></div>`;continue}
-    if(id==="regional"&&regionalFallback){const h=document.createElement("div");h.className="card";h.innerHTML=`<p class="note">📌 Regional-Ersatz: Tags (${esc(activeTags.join(", "))}) trafen nichts — neueste regionale Quellen (MDR · Sächsische Zeitung · Katapult) eingeblendet statt Leere.</p>`;box.appendChild(h)}
+    if(id==="regional"&&(regionalFallback||ruralFocus)){const h=document.createElement("div");h.className="card";h.innerHTML=`<p class="note">${ruralFocus?"🌾 Ländlicher Fokus aktiv: Umland-Themen (Landwirtschaft, Dorf, Forst) zuerst — Stadt-Interessen hinten. ":""}${regionalFallback?`📌 Regional-Ersatz: Tags (${esc(activeTags.join(", "))}) trafen nichts — neueste regionale Quellen eingeblendet statt Leere.`:""}</p>`;box.appendChild(h)}
     for(const it of arr){
       const d=document.createElement("div");d.className="card"+(it._read?" read":"");
       const badge=it.type==="oerr"?'<span class="pill b-oerr">ÖRR/gelenkt</span>':it.type==="yt"?'<span class="pill b-yt">▶ YouTube</span>':'<span class="pill b-krit">kritisch</span>';
@@ -402,9 +456,9 @@ applyTick();
 /* Export: aktuelle HTML mit allen Funktionen + Inhalten teilen / selbst reproduzieren */
 $("#exportBtn").onclick=()=>{
   try{
-    const snap={seen,activeTags,customTags,onlyUnread,days,hiddenSecs,theme:document.documentElement.dataset.theme,pin,tickSecs,tickPaused,exportedAt:new Date().toISOString(),articleCount:ALL.length};
+    const snap={seen,activeTags,customTags,onlyUnread,days,hiddenSecs,theme:document.documentElement.dataset.theme,pin,tickSecs,tickPaused,ruralFocus,exportedAt:new Date().toISOString(),articleCount:ALL.length};
     const snapJson=JSON.stringify(snap).replace(/</g,"\\u003c");
-    const seed=`<script>try{(function(s){var k=function(x){return "weltnius_"+x};var put=function(key,val){try{localStorage.setItem(k(key),JSON.stringify(val))}catch(e){}};put("seen_v1",s.seen||{});put("tags_on_v1",s.activeTags||[]);put("custom_v1",s.customTags||[]);put("onlyUnread_v1",s.onlyUnread);put("days_v1",s.days||7);put("hiddenSecs_v1",s.hiddenSecs||[]);put("theme_v1",s.theme||"dark");put("pin_v1",s.pin||{});put("tickSecs_v1",s.tickSecs||45);put("tickPaused_v1",!!s.tickPaused);})(JSON.parse(${JSON.stringify(snapJson)}))}catch(e){}<\/script>`;
+    const seed=`<script>try{(function(s){var k=function(x){return "weltnius_"+x};var put=function(key,val){try{localStorage.setItem(k(key),JSON.stringify(val))}catch(e){}};put("seen_v1",s.seen||{});put("tags_on_v1",s.activeTags||[]);put("custom_v1",s.customTags||[]);put("onlyUnread_v1",s.onlyUnread);put("days_v1",s.days||7);put("hiddenSecs_v1",s.hiddenSecs||[]);put("theme_v1",s.theme||"dark");put("pin_v1",s.pin||{});put("tickSecs_v1",s.tickSecs||45);put("tickPaused_v1",!!s.tickPaused);put("rural_v1",!!s.ruralFocus);})(JSON.parse(${JSON.stringify(snapJson)}))}catch(e){}<\/script>`;
     let html="<!DOCTYPE html>\n"+document.documentElement.outerHTML;
     html=html.replace(/<button id="reload"[^>]*>.*?<\/button>/s,'<button id="reload">↻ Neu laden</button>');
     html=html.replace(/<dialog([^>]*) open(="")?/, '<dialog$1');
