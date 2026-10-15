@@ -130,6 +130,8 @@ a.ytlink small{color:var(--mut);font-size:.72rem;padding:0 8px 6px}
 <p class="note">Ortsnamen (z.B. Leipzig) oder Koordinaten eingeben, dann Pin setzen. Klick neben das Fenster schließt ohne Änderung.</p>
 <input type="text" id="lat" placeholder="Breite 51.0504" size="12"> <input type="text" id="lon" placeholder="Länge 13.7373" size="12"> <input type="text" id="place" placeholder="Ortsname (z.B. Dresden)" size="14">
 <div class="actions"><button id="setPin">Pin setzen</button><button id="resetPin" class="ghost">Dresden-Reset</button><button id="closePin" class="ghost">Schließen ✓</button></div>
+<p class="note">CARTO-Kacheln brauchen seit 9/2026 einen Gratis-Key (ohne Key: Wasserzeichen statt Karte). <a href="https://carto.com/basemaps/apikey/" target="_blank" rel="noopener">Key in 1 Min. holen (nur E-Mail, kein Konto)</a>, hier einfügen:</p>
+<div class="actions"><input type="text" id="cartoKey" placeholder="CARTO-Key einfügen" size="26"><button id="saveKey" class="ghost">Key speichern</button></div>
 <p class="note" id="pinLabel"></p>
 </div>
 </dialog>
@@ -211,14 +213,17 @@ $("#theme").onclick=()=>{const h=document.documentElement;h.dataset.theme=h.data
 /* pin + Karte (Leaflet interaktiv per Finger, Fallback: OSM-iFrame) */
 const RURAL_KW=["landwirtschaft","agrar","ernte","bauer","bäuer","dorf","dörfer","ländlich","forst","wald","jagd","feld","milch","tierhaltung","biogas","landwirt","acker","weide"];
 let ruralFocus=!!store.get("weltnius_rural_v1",false);
-let Lmap=null,Lmarker=null,mapReady=false;
+let Lmap=null,Lmarker=null,Ltiles=null,mapReady=false;
+let cartoKey=store.get("weltnius_cartoKey_v1","");
+const tileUrl=()=>`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png${cartoKey?"?key="+encodeURIComponent(cartoKey):""}`;
+function addTiles(){if(Ltiles)Lmap.removeLayer(Ltiles);Ltiles=L.tileLayer(tileUrl(),{maxZoom:19,subdomains:"abcd",attribution:"© OpenStreetMap-Mitwirkende © CARTO"}).addTo(Lmap)}
 function leafletAssets(){return new Promise((res,rej)=>{if(window.L)return res(true);const l=document.createElement("link");l.rel="stylesheet";l.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";document.head.appendChild(l);const s=document.createElement("script");s.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";s.onload=()=>res(true);s.onerror=()=>rej(new Error("leaflet"));document.head.appendChild(s)})}
 async function initMap(lat,lon){
   if(mapReady)return;
   try{
     await leafletAssets();
     Lmap=L.map("map").setView([lat,lon],11);
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{maxZoom:19,subdomains:"abcd",attribution:"© OpenStreetMap-Mitwirkende © CARTO"}).addTo(Lmap);
+    addTiles();
     Lmarker=L.marker([lat,lon],{draggable:true}).addTo(Lmap);
     Lmarker.on("dragend",()=>{const p=Lmarker.getLatLng();useCoords(p.lat,p.lng,true)});
     Lmap.on("click",e=>useCoords(e.latlng.lat,e.latlng.lng,true));
@@ -281,6 +286,8 @@ $("#setPin").onclick=async()=>{
   pin={lat,lon,place:lastPlace};store.set("weltnius_pin_v1",pin);setMap(lat,lon,lastPlace);paint();
 };
 $("#ruralBox").onchange=e=>{ruralFocus=e.target.checked;store.set("weltnius_rural_v1",ruralFocus);setMap(pin.lat,pin.lon,pin.place);paint()};
+$("#cartoKey").value=cartoKey;
+$("#saveKey").onclick=()=>{cartoKey=($("#cartoKey").value||"").trim();store.set("weltnius_cartoKey_v1",cartoKey);if(mapReady&&Lmap)addTiles();alert(cartoKey?"Key gespeichert — Karte lädt neu.":"Key gelöscht — ohne Key zeigt CARTO nur Wasserzeichen.")};
 $("#resetPin").onclick=()=>{pin={lat:51.0504,lon:13.7373,place:"Dresden (Umland: Sachsen)"};store.set("weltnius_pin_v1",pin);setMap(pin.lat,pin.lon,pin.place)};
 /* tags */
 function allTags(){return [...CONFIG.topicTags,...customTags.filter(Boolean)]}
@@ -456,9 +463,9 @@ applyTick();
 /* Export: aktuelle HTML mit allen Funktionen + Inhalten teilen / selbst reproduzieren */
 $("#exportBtn").onclick=()=>{
   try{
-    const snap={seen,activeTags,customTags,onlyUnread,days,hiddenSecs,theme:document.documentElement.dataset.theme,pin,tickSecs,tickPaused,ruralFocus,exportedAt:new Date().toISOString(),articleCount:ALL.length};
+    const snap={seen,activeTags,customTags,onlyUnread,days,hiddenSecs,theme:document.documentElement.dataset.theme,pin,tickSecs,tickPaused,ruralFocus,cartoKey,exportedAt:new Date().toISOString(),articleCount:ALL.length};
     const snapJson=JSON.stringify(snap).replace(/</g,"\\u003c");
-    const seed=`<script>try{(function(s){var k=function(x){return "weltnius_"+x};var put=function(key,val){try{localStorage.setItem(k(key),JSON.stringify(val))}catch(e){}};put("seen_v1",s.seen||{});put("tags_on_v1",s.activeTags||[]);put("custom_v1",s.customTags||[]);put("onlyUnread_v1",s.onlyUnread);put("days_v1",s.days||7);put("hiddenSecs_v1",s.hiddenSecs||[]);put("theme_v1",s.theme||"dark");put("pin_v1",s.pin||{});put("tickSecs_v1",s.tickSecs||45);put("tickPaused_v1",!!s.tickPaused);put("rural_v1",!!s.ruralFocus);})(JSON.parse(${JSON.stringify(snapJson)}))}catch(e){}<\/script>`;
+    const seed=`<script>try{(function(s){var k=function(x){return "weltnius_"+x};var put=function(key,val){try{localStorage.setItem(k(key),JSON.stringify(val))}catch(e){}};put("seen_v1",s.seen||{});put("tags_on_v1",s.activeTags||[]);put("custom_v1",s.customTags||[]);put("onlyUnread_v1",s.onlyUnread);put("days_v1",s.days||7);put("hiddenSecs_v1",s.hiddenSecs||[]);put("theme_v1",s.theme||"dark");put("pin_v1",s.pin||{});put("tickSecs_v1",s.tickSecs||45);put("tickPaused_v1",!!s.tickPaused);put("rural_v1",!!s.ruralFocus);put("cartoKey_v1",s.cartoKey||"");})(JSON.parse(${JSON.stringify(snapJson)}))}catch(e){}<\/script>`;
     let html="<!DOCTYPE html>\n"+document.documentElement.outerHTML;
     html=html.replace(/<button id="reload"[^>]*>.*?<\/button>/s,'<button id="reload">↻ Neu laden</button>');
     html=html.replace(/<dialog([^>]*) open(="")?/, '<dialog$1');
