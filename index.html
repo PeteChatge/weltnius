@@ -222,7 +222,7 @@ async function initMap(lat,lon){
   if(mapReady)return;
   try{
     await leafletAssets();
-    Lmap=L.map("map").setView([lat,lon],11);
+    Lmap=L.map("map",{worldCopyJump:true}).setView([lat,lon],11);
     addTiles();
     Lmarker=L.marker([lat,lon],{draggable:true}).addTo(Lmap);
     Lmarker.on("dragend",()=>{const p=Lmarker.getLatLng();useCoords(p.lat,p.lng,true)});
@@ -246,8 +246,9 @@ async function reverseName(lat,lon){
     return {name, rural:["village","hamlet","farm","isolated_dwelling"].includes(t)||!!((a.village||a.hamlet)&&!a.city&&!a.town)};
   }catch{return {name:"",rural:null}}
 }
+const normLon=lon=>((+lon+540)%360+360)%360-180;
 async function useCoords(lat,lon,save){
-  lat=+((+lat).toFixed(5));lon=+((+lon).toFixed(5));
+  lat=Math.max(-90,Math.min(90,+((+lat).toFixed(5))));lon=+normLon(lon).toFixed(5);
   $("#lat").value=lat;$("#lon").value=lon;
   const rev=await reverseName(lat,lon);
   const place=rev.name||`${lat}, ${lon}`;
@@ -256,15 +257,16 @@ async function useCoords(lat,lon,save){
   if(save){pin={lat,lon,place};store.set("weltnius_pin_v1",pin);setMap(lat,lon,place);paint()}
 }
 const pinDialog=()=>document.getElementById("pinDialog");
-$("#openPinTop").onclick=()=>{const d=pinDialog();if(d.showModal)d.showModal();else d.setAttribute("open","")};
-$("#openPin").onclick=()=>{const d=pinDialog();if(d.showModal)d.showModal();else d.setAttribute("open","")};
+async function openPinDialog(){const d=pinDialog();if(!d.open){if(d.showModal)d.showModal();else d.setAttribute("open","")}await initMap(pin.lat,pin.lon);if(mapReady&&Lmap){Lmap.invalidateSize();setMap(pin.lat,pin.lon,pin.place)}}
+$("#openPinTop").onclick=openPinDialog;
+$("#openPin").onclick=openPinDialog;
 $("#closePin").onclick=()=>{const d=pinDialog();if(d.close)d.close();else d.removeAttribute("open")};
 pinDialog().addEventListener("click",e=>{if(e.target===pinDialog())pinDialog().close()});
 let pin=store.get("weltnius_pin_v1",{lat:51.0504,lon:13.7373,place:"Dresden (Umland: Sachsen)"});
+pin.lon=normLon(pin.lon||0);pin.lat=Math.max(-90,Math.min(90,+pin.lat||0));
 $("#ruralBox").checked=ruralFocus;
 setMap(pin.lat,pin.lon,pin.place);$("#lat").value=pin.lat;$("#lon").value=pin.lon;$("#place").value=pin.place||"Dresden";
 let lastPlace=$("#place").value;
-initMap(pin.lat,pin.lon);
 $("#setPin").onclick=async()=>{
   let lat=parseFloat((($("#lat").value)||"").replace(",",".")),lon=parseFloat((($("#lon").value)||"").replace(",","."));
   const placeRaw=(($("#place").value)||"").trim();
@@ -282,6 +284,7 @@ $("#setPin").onclick=async()=>{
     finally{btn.textContent="Pin setzen"}
   }
   if(!isFinite(lat)||!isFinite(lon))return alert("Bitte Koordinaten oder einen Ortsnamen eingeben.");
+  lon=+normLon(lon).toFixed(5);lat=+((+lat).toFixed(5));
   lastPlace=placeRaw||`${lat}, ${lon}`;
   pin={lat,lon,place:lastPlace};store.set("weltnius_pin_v1",pin);setMap(lat,lon,lastPlace);paint();
 };
