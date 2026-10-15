@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WELTNIUS — Nur-Ungelesene News</title>
+<style>
+:root{--bg:#0f141b;--bg2:#161e29;--card:#1b2534;--line:#2a3a52;--txt:#e8eef6;--mut:#9fb0c6;--acc:#4da3ff;--oerr:#3f7f3f;--krit:#b3541e;--yt:#c13333;--eu:#3a6ea5;--us:#6a5acd;--ru:#8a2be2;--cn:#b8860b;--hot:#c0392b;--asia:#1e8a8a;--reg:#2e8b57}
+[data-theme="light"]{--bg:#d8dbd9;--bg2:#cfdccf;--card:#d9e2ec;--line:#a9b6ad;--txt:#1e2a24;--mut:#4c5f58;--acc:#1d5fa8}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.55}
+header{position:sticky;top:0;z-index:10;background:var(--bg2);border-bottom:1px solid var(--line);padding:12px 16px}
+.wrap{max-width:1500px;margin:0 auto;padding:0 20px}
+.mast{text-align:center;padding:10px 0 2px}
+h1{margin:0;font-family:Georgia,"Times New Roman",serif;font-size:clamp(2.6rem,6vw,4.2rem);letter-spacing:6px;font-weight:800}h1 span{color:var(--acc)}
+.garden{font-family:Georgia,serif;font-size:clamp(1rem,2.2vw,1.25rem);margin:4px 0 0;letter-spacing:.5px}
+.garden span{font-weight:700}
+.sub{display:none}
+.lists-wide .list{column-gap:18px;column-rule:1px solid var(--line)}
+@media(min-width:1350px){.lists-wide .list{column-count:3}}
+@media(min-width:980px) and (max-width:1349px){.lists-wide .list{column-count:2}}
+@media(max-width:979px){.lists-wide .list{column-count:1}}
+.lists-wide .card{break-inside:avoid;page-break-inside:avoid}
+.desc{font-size:1rem}
+.bar{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}
+input[type=text],input[type=number],select{background:var(--card);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:.9rem}
+button{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:8px 12px;font-size:.9rem;cursor:pointer}
+button.ghost{background:transparent;color:var(--txt);border:1px solid var(--line)}
+button.active{outline:2px solid var(--acc)}
+.pill{display:inline-block;font-size:.72rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--mut);margin-right:6px}
+.b-oerr{background:rgba(63,127,63,.25);border-color:var(--oerr);color:#bfe3bf}.b-krit{background:rgba(179,84,30,.25);border-color:var(--krit);color:#ffd9b8}.b-yt{background:rgba(193,51,51,.22);border-color:var(--yt);color:#ffb3b3}
+[data-theme="light"] .b-oerr{color:#2c5a2c}[data-theme="light"] .b-krit{color:#7a3a12}[data-theme="light"] .b-yt{color:#8a1f1f}
+[data-theme="light"] body{background:linear-gradient(180deg,#d8dbd9 0%,#d3ded6 45%,#d9e2ec 100%)}
+[data-theme="light"] header{background:#cfdccf}
+[data-theme="light"] section.block>h2{background:#e4d9d2;border-radius:0 8px 8px 0;padding-top:4px;padding-bottom:4px}
+[data-theme="light"] .card{box-shadow:0 1px 0 rgba(30,42,36,.08)}
+[data-theme="light"] input[type=text],[data-theme="light"] input[type=number],[data-theme="light"] select{background:#e8ebe6}
+#reload.loading{opacity:1;pointer-events:none;border:1px solid var(--acc);animation:btnpulse 1.1s ease-in-out infinite}
+@keyframes btnpulse{0%,100%{box-shadow:0 0 0 0 rgba(77,163,255,.55)}50%{box-shadow:0 0 0 6px rgba(77,163,255,0)}}
+.ticker{margin:10px 0 2px;overflow:hidden}
+.pulse-line{height:2px;background:var(--acc);opacity:.7;animation:lpulse 1.6s ease-in-out infinite}
+@keyframes lpulse{0%,100%{opacity:.35}50%{opacity:1}}
+.ticker-view{overflow:hidden;white-space:nowrap;padding:6px 0}
+.ticker-track{display:inline-block;padding-left:100%;animation:tick 38s linear infinite;font-family:Georgia,serif;font-size:.95rem}
+.ticker:hover .ticker-track{animation-play-state:paused}
+@keyframes tick{to{transform:translateX(-100%)}}
+.ticker a{color:var(--acc)}
+@media(max-width:700px){.ticker-track{animation-duration:48s}}
+.spin{display:inline-block;animation:sp 1s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}
+#exportBtn{background:#e8710a;border-color:#e8710a;color:#fff;font-weight:700;box-shadow:0 0 10px rgba(232,113,10,.55)}
+#exportBtn:hover{background:#f5821f}
+/* kein Seitwärtsscrollen (Chrome): Gitter-Kinder dürfen schrumpfen, nichts ragt raus */
+html,body{overflow-x:clip}
+@supports not (overflow:clip){html,body{overflow-x:hidden}}
+.grid>*{min-width:0}#feed{min-width:0}.card{min-width:0}
+input[type=text]{max-width:100%}
+.desc{overflow-wrap:anywhere}
+img{max-width:100%;height:auto}
+/* Handy-Kopf kompakt: alles ins obere Drittel */
+@media(max-width:700px){
+  header{padding:6px 8px}
+  .mast{padding:2px 0 0}
+  h1{font-size:1.7rem;letter-spacing:2px}
+  .garden{font-size:.85rem}
+  .ticker{margin:4px 0 0}.ticker-track{font-size:.8rem}
+  .bar{gap:6px;margin-top:6px}
+  #onlyUnread{display:none}
+  #q{flex:1 1 110px;min-width:0}
+  #tagbar{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin}
+  .tagbtn{font-size:.72rem;padding:3px 8px;white-space:nowrap;flex:0 0 auto}
+  #customTags{flex:1 1 auto;min-width:0}
+  .tblabel{display:none}
+  button{padding:6px 9px;font-size:.82rem}
+  iframe.map{height:140px}
+  .note{font-size:.75rem}
+}
+.grid{display:grid;grid-template-columns:1fr 340px;gap:18px;margin:16px 0}@media(max-width:960px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.card.read{opacity:.62}.card.read h3{color:var(--mut)}
+.card h3{margin:.2rem 0 .4rem;font-size:1.02rem;line-height:1.4}.card h3 a{color:inherit;text-decoration:none}.card h3 a:hover{color:var(--acc);text-decoration:underline}
+.meta{font-size:.78rem;color:var(--mut);display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.desc{font-size:.94rem;margin:.5rem 0;white-space:pre-wrap}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+section.block{margin-bottom:18px}section.block>h2{font-size:1.15rem;margin:6px 0 10px;padding-left:10px;border-left:5px solid var(--acc)}
+#sec-regional>h2{border-color:var(--reg)}#sec-eu>h2{border-color:var(--eu)}#sec-usa>h2{border-color:var(--us)}#sec-ru>h2{border-color:var(--ru)}#sec-cn>h2{border-color:var(--cn)}#sec-hot>h2{border-color:var(--hot)}#sec-asia>h2{border-color:var(--asia)}
+iframe.map{width:100%;height:220px;border:1px solid var(--line);border-radius:12px}
+.tagbtn{border:1px solid var(--line);background:transparent;color:var(--txt);border-radius:999px;padding:4px 10px;font-size:.8rem;cursor:pointer}
+.tagbtn.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.note{font-size:.82rem;color:var(--mut)}.foot{color:var(--mut);font-size:.78rem;padding:14px 0 34px;text-align:center}
+.ytbox{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin:8px 0}
+a.ytlink{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none;background:var(--card)}
+a.ytlink .thumb{display:flex;align-items:center;justify-content:center;aspect-ratio:16/9;font-size:1.6rem;background:linear-gradient(135deg,#2b3a4a,#4a2b2b 60%,#2b4a3a);color:#fff}
+.thumbimg{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:8px;display:block;margin:6px 0 2px;background:var(--bg2)}
+a.ytlink .cap{padding:6px 8px;font-size:.82rem}
+a.ytlink small{color:var(--mut);font-size:.72rem;padding:0 8px 6px}
+</style>
+</head>
+<body>
+<header><div class="wrap mast">
+<h1>WELT<span>NIUS</span></h1>
+<p class="garden" id="garden">Die bunte Neubepflanzung des Nachrichten-Gartens</p>
+<div class="ticker" role="marquee" aria-label="Ticker: Zeitungsverlage in der Krise"><div class="pulse-line"></div><div class="ticker-view"><span class="ticker-track">+++ TICKER +++ Kleine Zeitungsverlage vor Besitz-Übernahme durch staatliche Medienkonzerne +++ Dresdner Lokalzeitungen in der Krise — <a href="https://taz.de/Dresdner-Lokalzeitungen-in-der-Krise/!5985680/" target="_blank" rel="noopener">taz.de/Dresdner-Lokalzeitungen-in-der-Krise</a> +++ Wer kauft die Lokalstimme? WELTNIUS bleibt lesbar statt verkäuflich +++ Regional zuerst: MDR · Sächsische Zeitung · Katapult Sachsen +++&nbsp;&nbsp;&nbsp;+++ TICKER +++ Kleine Zeitungsverlage vor Besitz-Übernahme durch staatliche Medienkonzerne +++ Dresdner Lokalzeitungen in der Krise — <a href="https://taz.de/Dresdner-Lokalzeitungen-in-der-Krise/!5985680/" target="_blank" rel="noopener">taz.de/Dresdner-Lokalzeitungen-in-der-Krise</a> +++ Wer kauft die Lokalstimme? WELTNIUS bleibt lesbar statt verkäuflich +++ Regional zuerst: MDR · Sächsische Zeitung · Katapult Sachsen +++&nbsp;&nbsp;&nbsp;</span></div><div class="pulse-line"></div></div>
+<div class="bar">
+<input type="text" id="q" placeholder="Suche (z.B. Dresden, Haushalt, Klima) …" size="28">
+<button id="startBtn" class="ghost" title="Suche/Tags anwenden und zum Feed springen">▶ Start</button>
+<button id="onlyUnread" class="ghost active">Nur Ungelesene</button>
+<label class="note">Behalte Gelesene <input type="number" id="days" value="7" min="1" max="90" style="width:60px"> Tage <span title="Nach Ablauf wird die Gelesen-Markierung vergessen – zum Weiterleiten reicht eine Woche, sagt die Erfahrung.">ⓘ</span></label>
+<label class="note"><input type="checkbox" id="showOld"> Alte trotzdem zeigen</label>
+<button id="theme" class="ghost" title="Hell/Dunkel umschalten">🌙/☀️<span class="tblabel"> Hell-Dunkel</span></button>
+<button id="reset" class="ghost">Gelesen-Reset</button>
+<button id="exportBtn" class="ghost" title="Aktuelle HTML mit allen Funktionen + Inhalten herunterladen (teilen / selbst reproduzieren)">⤓ Export</button>
+<label class="note" title="Tempo der Laufschrift: höhere Sekunden = langsamer">Ticker <input type="range" id="tickSpeed" min="10" max="120" step="5" value="45" style="width:90px;vertical-align:middle"> <span id="tickVal">45s</span> <button id="tickPause" class="ghost" style="padding:4px 8px" title="Laufschrift anhalten/fortsetzen">⏸</button></label>
+<button id="reload">↻ Neu laden</button>
+</div>
+<div class="bar" id="tagbar" title="Themen-Lenkung: 4 fix + 3 frei"></div>
+<div class="bar"><input type="text" id="customTags" placeholder="3 Extra-Tags, Komma-getrennt (z.B. Haushalt, Polizei, Energie)" size="46"><button id="saveTags" class="ghost">Tags speichern</button></div>
+</div></header>
+<div class="wrap lists-wide"><div class="grid">
+<div id="feed">
+<section class="block" id="sec-regional"><h2>📍 Regional — Dresden + Sachsen <span class="pill">Migration · Rüstung · Umwelt · Finanz-/Politikskandale</span></h2><div class="ytbox" data-yt="regional"></div><div class="list"></div></section>
+<section class="block" id="sec-eu"><h2>🇪🇺 1) EU</h2><div class="ytbox" data-yt="eu"></div><div class="list"></div></section>
+<section class="block" id="sec-usa"><h2>🇺🇸 2) USA</h2><div class="ytbox" data-yt="usa"></div><div class="list"></div></section>
+<section class="block" id="sec-ru"><h2>🇷🇺 3) Russland</h2><div class="ytbox" data-yt="ru"></div><div class="list"></div></section>
+<section class="block" id="sec-cn"><h2>🇨🇳 4) China</h2><div class="ytbox" data-yt="cn"></div><div class="list"></div></section>
+<section class="block" id="sec-hot"><h2>🔥 5) Hot/Danger — Israel · Türkei · Indien-Block</h2><div class="ytbox" data-yt="hot"></div><div class="list"></div></section>
+<section class="block" id="sec-asia"><h2>🌏 6) Asien-Ozeanien — Korea · Japan · AU/NZ/Pazifik</h2><div class="ytbox" data-yt="asia"></div><div class="list"></div></section>
+<section class="block" id="sec-rest"><h2>🧺 Fundstücke — passt in kein Schema, aber zu schade fürs Widget-Nirvana</h2><div class="list"></div></section>
+</div>
+<div><div class="card">
+<h3>🗺️ Fokus-Pin (Seitenkopf-Karte)</h3>
+<iframe class="map" id="map" src="https://www.openstreetmap.org/export/embed.html?bbox=13.4%2C50.9%2C14.1%2C51.25&layer=mapnik&marker=51.0504%2C13.7373"></iframe>
+<p class="note">Default: Dresden (51.0504, 13.7373), Umland = Sachsen. Pin per Koordinaten änderbar, wird gespeichert.</p>
+<input type="text" id="lat" placeholder="Breite 51.0504" size="12"> <input type="text" id="lon" placeholder="Länge 13.7373" size="12"> <input type="text" id="place" placeholder="Ortsname (z.B. Dresden)" size="14">
+<div class="actions"><button id="setPin">Pin setzen</button><button id="resetPin" class="ghost">Dresden-Reset</button></div>
+<p class="note" id="pinLabel"></p>
+</div>
+<div class="card"><h3>⚖️ Quellen</h3><p class="note"><span class="pill b-oerr">ÖRR</span><span class="pill b-krit">kritisch</span><span class="pill b-yt">▶ YT</span></p><div class="actions" id="secToggle"></div></div>
+<div class="card"><h3>📡 Status</h3><p class="note" id="status">Bereit.</p></div>
+</div></div>
+<p class="foot">WELTNIUS · 1 Datei · Karten © OpenStreetMap</p></div>
+<script>
+/* ============ CONFIG — hier editieren ============ */
+const CONFIG = {
+  sections: {
+    regional: {keywords:["dresden","sachsen","leipzig","chemnitz"," Bautzen","görlitz","meissen","erzgebirge","mdr"]},
+    eu: {keywords:[" eu ","brüssel","strassburg","europaparlament","europäische union","von der leyen","euronews"]},
+    usa: {keywords:["usa","washington","trump","biden","weisses haus","white house","us-wahl"]},
+    ru: {keywords:["russland","moskau","putin","kreml"]},
+    cn: {keywords:["china","peking","beijing","xi jinping","taiwan"]},
+    hot: {keywords:["israel","gaza","netanjahu","türkei","erdogan","indien","modi","iran","hamas"]},
+    asia: {keywords:["japan","tokio","korea","seoul","pyongyang","australien","neuseeland","ozeanien","pazifik","sydney"]}
+  },
+  topicTags: ["Migration","Asyl","Rüstung","Bundeswehr","Umwelt","Klima","Korruption","Skandal","Haushalt"],
+  feeds: [
+    {name:"Tagesschau", url:"https://www.tagesschau.de/index~rss2.xml", type:"oerr", block:["regional","eu","usa","ru","cn","hot","asia"]},
+    {name:"ZDF heute", url:"https://www.zdfheute.de/rss/zdf/nachrichten", type:"oerr", block:["regional","eu","hot"]},
+    {name:"MDR Sachsen", url:"https://www.mdr.de/nachrichten/sachsen/index~rss2.xml", type:"oerr", block:["regional"]},
+    {name:"Euronews DE", url:"https://de.euronews.com/rss?format=mrss", type:"oerr", block:["eu","hot","asia"]},
+    {name:"Sächsische Zeitung (gelenkt, optional)", url:"https://www.saechsische.de/rss", type:"oerr", optional:true, block:["regional"]},
+    {name:"Katapult Sachsen (kritisch)", url:"https://katapult-sachsen.de/feed", type:"kritisch", block:["regional"]},
+    {name:"Tichys Einblick", url:"https://www.tichyseinblick.de/feed/", type:"kritisch", block:["regional","eu","usa","ru","cn","hot"]},
+    {name:"NIUS (optional, oft geblockt)", url:"https://nius.de/feed", type:"kritisch", optional:true, block:["regional","eu","usa","hot"]},
+    {name:"Welt", url:"https://www.welt.de/feeds/latest.rss", type:"kritisch", block:["regional","eu","usa","ru","cn","hot","asia"]},
+    {name:"Achgut", url:"https://www.achgut.com/rss", type:"kritisch", block:["eu","usa","hot"]}
+  ],
+  ytChannels: {
+    regional:[{name:"NIUS",id:"UCQGqiGhMjc_p4lZEhSTb12g"},{name:"WELT Nachrichtensender",id:"UCZMsvbAhhRblVGXmEXW8TSA"}]
+  },
+  yt: {
+    regional:[["NIUS Kanal","https://www.youtube.com/results?search_query=nius"], ["WELT live","https://www.youtube.com/results?search_query=welt+live"]],
+    eu:[["Euronews Deutsch","https://www.youtube.com/@euronewsde"]],
+    usa:[["Tichy + WELT USA","https://www.youtube.com/results?search_query=tichys+einblick+usa"]],
+    ru:[["WELT Russland","https://www.youtube.com/results?search_query=welt+russland+ukraine"]],
+    cn:[["WELT China","https://www.youtube.com/results?search_query=welt+china+taiwan"]],
+    hot:[["NIUS Israel/Türkei","https://www.youtube.com/results?search_query=nius+israel+t%C3%BCrkei"]],
+    asia:[["Euronews Asia","https://www.youtube.com/results?search_query=euronews+asien+japan"]]
+  }
+};
+/* ============ STATE ============ */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const store={_m:{},get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):(k in this._m?this._m[k]:d)}catch{return (k in this._m?this._m[k]:d)}},set(k,v){this._m[k]=v;try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+let seen=store.get("weltnius_seen_v1",{}); // hash -> ts
+let activeTags=store.get("weltnius_tags_on_v1",[]);
+let customTags=store.get("weltnius_custom_v1",["Haushalt","Polizei","Energie"]);
+let onlyUnread=store.get("weltnius_onlyUnread_v1",true);
+let days=store.get("weltnius_days_v1",7);
+let hiddenSecs=store.get("weltnius_hiddenSecs_v1",[]);
+function norm(s){return (s||"").toLowerCase().replace(/[^a-zäöüß0-9]+/gi," ").trim()}
+function hash(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return String(h>>>0)}
+function keyOf(it){return hash(norm(it.title).slice(0,120)+"|"+(it.link||"").split("?")[0])}
+function ageDays(d){return (Date.now()-d.getTime())/(864e5)}
+function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;")}
+/* theme */
+if(store.get("weltnius_theme_v1","dark")==="light")document.documentElement.dataset.theme="light";
+$("#theme").onclick=()=>{const h=document.documentElement;h.dataset.theme=h.dataset.theme==="dark"?"light":"dark";store.set("weltnius_theme_v1",h.dataset.theme)};
+/* pin */
+function setMap(lat,lon,place){$("#map").src=`https://www.openstreetmap.org/export/embed.html?bbox=${lon-0.35}%2C${lat-0.15}%2C${lon+0.35}%2C${lat+0.15}&layer=mapnik&marker=${lat}%2C${lon}`;$("#pinLabel").textContent=`Fokus: ${place||""} (${lat}, ${lon}) · Umland mitgedacht.`}
+let pin=store.get("weltnius_pin_v1",{lat:51.0504,lon:13.7373,place:"Dresden (Umland: Sachsen)"});
+setMap(pin.lat,pin.lon,pin.place);$("#lat").value=pin.lat;$("#lon").value=pin.lon;$("#place").value="Dresden";
+$("#setPin").onclick=()=>{const lat=parseFloat($("#lat").value),lon=parseFloat($("#lon").value);if(!isFinite(lat)||!isFinite(lon))return alert("Bitte gültige Koordinaten.");pin={lat,lon,place:$("#place").value||"Custom"};store.set("weltnius_pin_v1",pin);setMap(lat,lon,pin.place)};
+$("#resetPin").onclick=()=>{pin={lat:51.0504,lon:13.7373,place:"Dresden (Umland: Sachsen)"};store.set("weltnius_pin_v1",pin);setMap(pin.lat,pin.lon,pin.place)};
+/* tags */
+function allTags(){return [...CONFIG.topicTags,...customTags.filter(Boolean)]}
+function renderTags(){$("#tagbar").innerHTML="";allTags().forEach(t=>{const b=document.createElement("button");b.className="tagbtn"+(activeTags.includes(t)?" on":"");b.textContent=t;b.onclick=()=>{activeTags=activeTags.includes(t)?activeTags.filter(x=>x!==t):[...activeTags,t];store.set("weltnius_tags_on_v1",activeTags);renderTags();paint()};$("#tagbar").appendChild(b)});$("#customTags").value=customTags.join(", ")}
+$("#saveTags").onclick=()=>{customTags=$("#customTags").value.split(",").map(s=>s.trim()).filter(Boolean).slice(0,6);store.set("weltnius_custom_v1",customTags);renderTags();paint()};
+/* controls */
+$("#onlyUnread").classList.toggle("active",onlyUnread);
+$("#onlyUnread").onclick=e=>{onlyUnread=!onlyUnread;store.set("weltnius_onlyUnread_v1",onlyUnread);e.target.classList.toggle("active",onlyUnread);paint()};
+$("#days").value=days;$("#days").onchange=e=>{days=Math.max(1,Math.min(90,+e.target.value||7));store.set("weltnius_days_v1",days);pruneSeen();paint()};
+$("#reset").onclick=()=>{if(confirm("Alle Gelesen-Markierungen vergessen? Das Widget freut sich schon auf Wiederholungen.")){seen={};store.set("weltnius_seen_v1",seen);paint()}};
+$("#q").oninput=()=>paint();$("#showOld").onchange=()=>paint();$("#reload").onclick=()=>load(true);
+$("#startBtn").onclick=()=>{paint();document.getElementById("feed").scrollIntoView()};
+/* section toggles */
+const SECS=[["regional","Regional"],["eu","EU"],["usa","USA"],["ru","RU"],["cn","China"],["hot","Hot/Danger"],["asia","Asien-Ozeanien"],["rest","Fundstücke"]];
+function renderSecToggle(){const d=$("#secToggle");d.innerHTML="";SECS.forEach(([id,label])=>{const b=document.createElement("button");b.className="ghost tagbtn"+(hiddenSecs.includes(id)?"":" on");b.textContent=(hiddenSecs.includes(id)?"＋ ":"✓ ")+label;b.onclick=()=>{hiddenSecs=hiddenSecs.includes(id)?hiddenSecs.filter(x=>x!==id):[...hiddenSecs,id];store.set("weltnius_hiddenSecs_v1",hiddenSecs);applySecVis()};d.appendChild(b)})}
+function applySecVis(){SECS.forEach(([id])=>{const el=$("#sec-"+id);if(el)el.style.display=hiddenSecs.includes(id)?"none":""})}
+/* Gartenzeile kunterbunt, ausdrücklich kein Regenbogen: erdig-gedeckte Palette, zufällige Reihenfolge */
+(function(){const el=document.getElementById("garden");if(!el)return;const pal=["#7a3b2e","#3f6b4f","#31456e","#7a6227","#5d3a5d","#2f6f6f","#8a4b2a","#4a5d23"];const txt=el.textContent;el.textContent="";[...txt].forEach((ch,i)=>{const s=document.createElement("span");s.textContent=ch;if(ch!==" ")s.style.color=pal[(i*5+3)%pal.length];el.appendChild(s)})})();
+/* yt links */
+$$(".ytbox").forEach(box=>{const k=box.dataset.yt;(CONFIG.yt[k]||[]).forEach(([n,u])=>{const a=document.createElement("a");a.className="ytlink";a.href=u;a.target="_blank";a.rel="noopener";a.innerHTML=`<span class="cap">▶ ${esc(n)}</span><small>YouTube · Suche · Link</small>`;box.appendChild(a)})});
+/* fetch */
+let ALL=[];
+function pruneSeen(){const cut=Date.now()-days*864e5;for(const k in seen)if(seen[k]<cut)delete seen[k];store.set("weltnius_seen_v1",seen)}
+/* fetch — ohne API-Key: erst direkt, dann mehrere CORS-Proxys */
+let loading=false;
+async function fetchWithTimeout(url,ms=15000){
+  const c=new AbortController();const t=setTimeout(()=>c.abort(),ms);
+  try{const r=await fetch(url,{signal:c.signal});return r}finally{clearTimeout(t)}
+}
+async function fetchRSS(feed,setStatus){
+  const tries=[
+    {label:"direkt", fn:async()=>{const r=await fetchWithTimeout(feed.url);if(!r.ok)throw new Error("HTTP "+r.status);const t=await r.text();if(!t||t.length<400||/<html/i.test(t.slice(0,300))&&!/<rss|rdf|feed/i.test(t.slice(0,2000)))throw new Error("kein RSS (HTML)");return t}},
+    {label:"allorigins/get", fn:async()=>{const r=await fetchWithTimeout("https://api.allorigins.win/get?url="+encodeURIComponent(feed.url));if(!r.ok)throw new Error("HTTP "+r.status);const j=await r.json();const t=j.contents||"";if(t.length<400)throw new Error("leer");return t}},
+    {label:"allorigins/raw", fn:async()=>{const r=await fetchWithTimeout("https://api.allorigins.win/raw?url="+encodeURIComponent(feed.url));if(!r.ok)throw new Error("HTTP "+r.status);const t=await r.text();if(t.length<400)throw new Error("leer");return t}},
+    {label:"corsproxy.io", fn:async()=>{const r=await fetchWithTimeout("https://corsproxy.io/?url="+encodeURIComponent(feed.url));if(!r.ok)throw new Error("HTTP "+r.status);const t=await r.text();if(t.length<400)throw new Error("leer");return t}}
+  ];
+  let lastErr=null;
+  for(const t of tries){try{if(setStatus)setStatus(`… ${feed.name} via ${t.label}`);return await t.fn()}catch(e){lastErr=e}}
+  throw new Error("fetch fail "+feed.name+": "+(lastErr&&lastErr.message||"unbekannt"));
+}
+function demoArticles(){
+  const now=Date.now(),h=36e5;
+  const EXTRA=" Wer hier liest, bleibt bewusst zwei Sätze länger in WELTNIUS statt sofort zum Original zu springen. Erst einordnen, dann weiterklicken — der Garten dankt mit Überblick.";
+  const mk=(sec,feed,type,title,desc,ago)=>({title,link:"https://www.google.com/search?q="+encodeURIComponent(title),desc:desc+EXTRA,date:new Date(now-ago*h),feed,type,sec,demo:true});
+  return [
+    mk("regional","MDR Sachsen (Demo)","oerr","Dresden: Stadtrat ringt um Haushalt — Migrationskosten und Clan-Kriminalität im Fokus","Die Elbmetropole debattiert über ein Millionenloch im Haushalt: Unterbringung, Sicherheit und marode Brücken konkurrieren um dieselbe Kasse. Der Oberbürgermeister verspricht Transparenz, die Opposition wittert den nächsten Finanzskandal mit Ansage. ORT: Dresden/Sachsen. THEMEN: Migration, Haushalt, Politikskandal.",2),
+    mk("regional","Tichy-Demo","kritisch","Sachsen: Rüstungsstandort im Dilemma — Aufträge ja, Debatte nein?","Zwischen Dresdner Chipfabriken und sächsischen Zulieferern wächst ein neuer Rüstungs-Hub. Die einen feiern Arbeitsplätze, die anderen fragen: Wer kontrolliert eigentlich die Vergabe, und wer verdient an der Zeitenwende? THEMEN: Rüstung, Bundeswehr, Korruption.",5),
+    mk("regional","NIUS-Demo (Link)","kritisch","Umwelt an der Elbe: Hochwasser-Schutz vs. Naturschutz — Sachsen streitet am Fluss","Nach den letzten Fluten fordert das Umland Deiche, Dresden fordert Biotope. Die sächsische Umweltdebatte in einer Nussschale: Jeder will Klimaschutz, keiner will die Baustelle vor der Tür. THEMEN: Umwelt, Klima.",9),
+    mk("eu","Euronews-Demo","oerr","EU-Gipfel zu Migration und Rüstung: Brüssel verspricht Härte, liefert Papier","Die EU beschließt das tantas Sanktionenpaket und die zoveelste Migrationsquote. Beifall in Straßburg, Stirnrunzeln in Sachsen: Wer zahlt, wer nimmt auf, wer kontrolliert? Eine Bestandsaufnahme ohne Beruhigungspille.",12),
+    mk("usa","Welt-Demo","kritisch","USA: Wahlkampf mit deutschem Echo — Zölle, Ukraine-Hilfen, Tech-Streit","Washington streitet über Zölle und Milliardenhilfen, Berlin zahlt und kommentiert. Was amerikanische Entscheidungen für sächsische Exporteure und deutsche Haushalte bedeuten — nüchtern statt hysterisch.",20),
+    mk("hot","Tagesschau-Demo","oerr","Israel/Türkei/Indien im Überblick: Warum die Hot-Zone auch Dresden betrifft","Energiepreise, Migration, Rüstungsexporte: Was in Tel Aviv, Ankara und Neu-Delhi geschieht, landet als Rechnung, Schlagzeile oder Mahnwache in Sachsen. Einordnung statt Aufregung.",26),
+    mk("asia","Euronews-Demo","oerr","Japan/Korea/Australien: Chip-Allianz im Pazifik — Sachsens stille Partner","Tokio, Seoul und Sydney schmieden Technologie-Pakte. Für Dresden als Chip-Standort ist das kein Fernost-Feuilleton, sondern Standortpolitik. THEMEN: Rüstung im weiteren Sinn, Wirtschaft, Umwelttechnik.",30)
+  ];
+}
+function parseRSS(xml,feed){
+  const doc=new DOMParser().parseFromString(xml,"text/xml");
+  const items=[...doc.querySelectorAll("item")].slice(0,40);
+  return items.map(it=>{
+    const g=t=>it.querySelector(t)?.textContent?.trim()||"";
+    let link=g("link"); if(!link){const enc=it.querySelector("enclosure");link=enc?.getAttribute("url")||""}
+    let desc=g("description")||g("content\\:encoded")||g("content")||"";
+    desc=desc.replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim();
+    // Zeitungslayout: zwei vollendete Sätze mehr als bisher — großzügig, Satzgrenze beachten
+    if(desc.length>1050){const cut=desc.slice(0,1050);const m=cut.match(/.*[.!?…]["»“”']?\s/s);desc=(m?m[0]:cut).trim()+" …"}
+    let pub=g("pubDate")||g("updated")||g("dc\\:date");let d=new Date(pub);if(isNaN(d))d=new Date();
+    return {title:g("title")||"(ohne Titel)",link,desc,date:d,feed:feed.name,type:feed.type};
+  }).filter(x=>x.title&&x.link);
+}
+const REGIONAL_FEEDS=["MDR Sachsen","Sächsische Zeitung (gelenkt, optional)","Katapult Sachsen (kritisch)"];
+function parseYT(xml,ch){
+  const doc=new DOMParser().parseFromString(xml,"text/xml");
+  const pick=(el,tag)=>{const n=el.getElementsByTagName(tag)[0];return n?n.textContent.trim():""};
+  return [...doc.getElementsByTagName("entry")].slice(0,3).map(en=>{
+    const id=pick(en,"yt:videoId");
+    const linkEl=en.querySelector('link[rel="alternate"]');
+    const link=(linkEl&&linkEl.getAttribute("href"))||(id?`https://www.youtube.com/watch?v=${id}`:"");
+    let desc=(pick(en,"media:description")||"").replace(/\s+/g," ").trim();
+    if(desc.length>400){const cut=desc.slice(0,400);const m=cut.match(/.*[.!?…]["»“”']?\s/s);desc=(m?m[0]:cut).trim()+" …"}
+    let d=new Date(pick(en,"published"));if(isNaN(d))d=new Date();
+    const thEl=en.getElementsByTagName("media:thumbnail")[0];
+    const thumb=(thEl&&thEl.getAttribute("url"))||(id?`https://i.ytimg.com/vi/${id}/hqdefault.jpg`:"");
+    return {title:pick(en,"title")||"(ohne Titel)",link,desc:desc||("Neues Video auf "+ch+"."),date:d,feed:"YouTube · "+ch,type:"yt",sec:"regional",thumb};
+  }).filter(x=>x.title&&x.link);
+}
+function classify(it){
+  if(REGIONAL_FEEDS.includes(it.feed))return "regional";
+  const t=(norm(it.title)+" "+norm(it.desc));
+  for(const [sec,cfg] of Object.entries(CONFIG.sections)){if(cfg.keywords.some(k=>t.includes(norm(k))))return sec}
+  return "rest";
+}
+async function load(force){
+  if(loading)return;loading=true;
+  const btn=$("#reload");btn.classList.add("loading");btn.innerHTML='<span class="spin">↻</span> Lädt …';
+  pruneSeen();
+  const setStatus=s=>{$("#status").textContent="Lade "+s+" … (kann 20–60s dauern, Geduld ist auch eine Nachricht)"};
+  setStatus("Start");
+  const out=[],errs=[];
+  let i=0;
+  for(const f of CONFIG.feeds){
+    i++;setStatus(`${i}/${CONFIG.feeds.length}: ${f.name}`);
+    try{const xml=await fetchRSS(f,setStatus);const items=parseRSS(xml,f);out.push(...items)}
+    catch(e){console.warn(e);errs.push(f.name+(f.optional?" (optional)":"")+": "+e.message)}
+  }
+  for(const c of (CONFIG.ytChannels.regional||[])){
+    try{const xml=await fetchRSS({name:"YouTube · "+c.name,url:`https://www.youtube.com/feeds/videos.xml?channel_id=${c.id}`},setStatus);out.push(...parseYT(xml,c.name))}
+    catch(e){console.warn(e);errs.push("YouTube · "+c.name+": "+e.message)}
+  }
+  // Dedupe
+  const seenUrl=new Set(),uniq=[];
+  for(const it of out.sort((a,b)=>b.date-a.date)){const k=keyOf(it);if(seenUrl.has(k))continue;seenUrl.add(k);uniq.push({...it,sec:it.sec||classify(it),k})}
+  ALL=uniq;
+  let demoMode=false;
+  if(!ALL.length){
+    demoMode=true;
+    ALL=demoArticles().map(it=>({...it,k:keyOf(it)}));
+  }
+  const okN=CONFIG.feeds.length-errs.length;
+  $("#status").innerHTML=demoMode
+    ? `⚠️ Live-Feeds blockiert (CORS/offline) — zeige <b>regionale Demo-Inhalte</b> statt Leere. Fehler: ${esc(errs.join(" | "))||"unbekannt"}. Tipp: 1× „Neu laden“ mit Netz probieren; Feeds im CONFIG editierbar.`
+    : `${uniq.length} Artikel aus ${okN}/${CONFIG.feeds.length} Feeds · ${Object.keys(seen).length} gelesen · Stand ${new Date().toLocaleTimeString("de-DE")}${errs.length?" · Fehler: "+esc(errs.join(" | ")):""}`;
+  btn.classList.remove("loading");btn.textContent="↻ Neu laden";loading=false;
+  paint();
+}
+function paint(){
+  const q=norm($("#q").value), showOld=$("#showOld").checked;
+  const bySec={};SECS.forEach(([id])=>bySec[id]=[]);
+  for(const it of ALL){
+    const isRead=!!seen[it.k];
+    if(onlyUnread&&isRead)continue;
+    if(q&&!(norm(it.title+" "+it.desc).includes(q)))continue;
+    const tagHit=activeTags.length===0||activeTags.some(t=>norm(it.title+" "+it.desc).includes(norm(t)));
+    // Themen-Tags gelten v.a. für regional; andere Blöcke nur filtern wenn Tag passt? Nein: global filtern wenn aktiv
+    if(!tagHit)continue;
+    const a=ageDays(it.date);
+    it._old=a>days*2; it._read=isRead;
+    if(it._old&&!showOld)continue;
+    bySec[it.sec in bySec?it.sec:"rest"].push(it);
+  }
+  // Sort: ungelesene zuerst, dann neueste; alte ans Ende
+  for(const k in bySec)bySec[k].sort((a,b)=>(a._read-b._read)||((a._old?1e15:0)-(b._old?1e15:0))||(b.date-a.date));
+  // Regional-Garantie: Tags dürfen die Region nie leer fegen — Fallback ohne Tag-Filter
+  let regionalFallback=false;
+  if(!bySec.regional.length){
+    const pool=ALL.filter(it=>{const r=!!seen[it.k];if(onlyUnread&&r)return false;if(q&&!norm(it.title+" "+it.desc).includes(q))return false;const a=ageDays(it.date);if(a>days*2&&!showOld)return false;return true});
+    const regFirst=[...pool.filter(it=>REGIONAL_FEEDS.includes(it.feed)),...pool.filter(it=>it.sec==="regional"),...pool].filter((v,i,a)=>a.indexOf(v)===i);
+    if(regFirst.length){bySec.regional=regFirst.slice(0,6);regionalFallback=true}
+  }
+  for(const [id] of SECS){
+    const box=$(`#sec-${id} .list`);if(!box)continue;box.innerHTML="";
+    const arr=bySec[id];
+    if(!arr.length){box.innerHTML=`<div class="card"><p class="note">Nichts hier — Filter aktiv: ${activeTags.length?esc(activeTags.join(", ")):"keine Tags"}${$("#q").value?`, Suche „${esc($("#q").value)}"`:``}${onlyUnread?" · Modus: nur Ungelesene":""}. Sarkasmus-Modus: Das Widget hätte dir hier eine Meldung von vor 4 Monaten untergejubelt.</p></div>`;continue}
+    if(id==="regional"&&regionalFallback){const h=document.createElement("div");h.className="card";h.innerHTML=`<p class="note">📌 Regional-Ersatz: Tags (${esc(activeTags.join(", "))}) trafen nichts — neueste regionale Quellen (MDR · Sächsische Zeitung · Katapult) eingeblendet statt Leere.</p>`;box.appendChild(h)}
+    for(const it of arr){
+      const d=document.createElement("div");d.className="card"+(it._read?" read":"");
+      const badge=it.type==="oerr"?'<span class="pill b-oerr">ÖRR/gelenkt</span>':it.type==="yt"?'<span class="pill b-yt">▶ YouTube</span>':'<span class="pill b-krit">kritisch</span>';
+      const img=it.thumb?`<a href="${it.link}" target="_blank" rel="noopener"><img class="thumbimg" loading="lazy" src="${it.thumb}" alt=""></a>`:"";
+      d.innerHTML=`<div class="meta">${badge}<span>${esc(it.feed)}</span><span>·</span><span>${it.date.toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</span>${it._old?'<span class="pill">archäologisch alt</span>':""}${it._read?'<span class="pill">gelesen · grau, aber klickbar</span>':'<span class="pill" style="border-color:var(--acc);color:var(--acc)">NEU · noch nie gezeigt</span>'}</div>${img}<h3><a href="${it.link}" target="_blank" rel="noopener">${esc(it.title)}</a></h3><p class="desc">${esc(it.desc)}</p><div class="actions"><button>Öffnen → als gelesen</button><a class="note" href="${it.link}" target="_blank" rel="noopener">Weiterlesen beim Verlag ↗</a></div>`;
+      d.querySelector("button").onclick=ev=>{seen[it.k]=Date.now();store.set("weltnius_seen_v1",seen);ev.preventDefault();window.open(it.link,"_blank","noopener");paint()};
+      d.querySelector("h3 a").addEventListener("click",()=>{seen[it.k]=Date.now();store.set("weltnius_seen_v1",seen);setTimeout(paint,400)});
+      box.appendChild(d);
+    }
+  }
+  applySecVis();
+}
+/* Ticker-Tempo: Leser regelt Sekunden pro Durchlauf (mehr = langsamer) + Pause */
+let tickSecs=+store.get("weltnius_tickSecs_v1",45)||45, tickPaused=store.get("weltnius_tickPaused_v1",false);
+function applyTick(){const tr=document.querySelector(".ticker-track");if(tr){tr.style.animationDuration=tickSecs+"s";tr.style.animationPlayState=tickPaused?"paused":"running"}$("#tickSpeed").value=tickSecs;$("#tickVal").textContent=tickSecs+"s";$("#tickPause").textContent=tickPaused?"▶":"⏸"}
+$("#tickSpeed").oninput=e=>{tickSecs=+e.target.value;store.set("weltnius_tickSecs_v1",tickSecs);applyTick()};
+$("#tickPause").onclick=()=>{tickPaused=!tickPaused;store.set("weltnius_tickPaused_v1",tickPaused);applyTick()};
+applyTick();
+/* Export: aktuelle HTML mit allen Funktionen + Inhalten teilen / selbst reproduzieren */
+$("#exportBtn").onclick=()=>{
+  try{
+    const snap={seen,activeTags,customTags,onlyUnread,days,hiddenSecs,theme:document.documentElement.dataset.theme,pin,tickSecs,tickPaused,exportedAt:new Date().toISOString(),articleCount:ALL.length};
+    const snapJson=JSON.stringify(snap).replace(/</g,"\\u003c");
+    const seed=`<script>try{(function(s){var k=function(x){return "weltnius_"+x};var put=function(key,val){try{localStorage.setItem(k(key),JSON.stringify(val))}catch(e){}};put("seen_v1",s.seen||{});put("tags_on_v1",s.activeTags||[]);put("custom_v1",s.customTags||[]);put("onlyUnread_v1",s.onlyUnread);put("days_v1",s.days||7);put("hiddenSecs_v1",s.hiddenSecs||[]);put("theme_v1",s.theme||"dark");put("pin_v1",s.pin||{});put("tickSecs_v1",s.tickSecs||45);put("tickPaused_v1",!!s.tickPaused);})(JSON.parse(${JSON.stringify(snapJson)}))}catch(e){}<\/script>`;
+    let html="<!DOCTYPE html>\n"+document.documentElement.outerHTML;
+    html=html.replace(/<button id="reload"[^>]*>.*?<\/button>/s,'<button id="reload">↻ Neu laden</button>');
+    html=html.replace("</body>",seed+"</body>");
+    const blob=new Blob([html],{type:"text/html;charset=utf-8"});
+    const a=document.createElement("a");const d=new Date();
+    const p=n=>String(n).padStart(2,"0");
+    a.href=URL.createObjectURL(blob);a.download=`weltnius-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.html`;
+    document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},800);
+    $("#status").textContent=`Exportiert: ${ALL.length} Artikel + Einstellungen (${a.download}) — Datei teilen, doppelklicken, fertig.`;
+  }catch(e){alert("Export gescheitert: "+e.message)}
+};
+renderTags();renderSecToggle();applySecVis();load();
+</script>
+</body>
+</html>
