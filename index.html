@@ -209,7 +209,7 @@ function ageDays(d){return (Date.now()-d.getTime())/(864e5)}
 function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;")}
 /* theme */
 if(store.get("weltnius_theme_v1","dark")==="light")document.documentElement.dataset.theme="light";
-$("#theme").onclick=()=>{const h=document.documentElement;h.dataset.theme=h.dataset.theme==="dark"?"light":"dark";store.set("weltnius_theme_v1",h.dataset.theme)};
+$("#theme").onclick=()=>{const h=document.documentElement;h.dataset.theme=h.dataset.theme==="dark"?"light":"dark";store.set("weltnius_theme_v1",h.dataset.theme);paintGarden()};
 /* pin + Karte (Leaflet interaktiv per Finger, Fallback: OSM-iFrame) */
 const RURAL_KW=["landwirtschaft","agrar","ernte","bauer","bäuer","dorf","dörfer","ländlich","forst","wald","jagd","feld","milch","tierhaltung","biogas","landwirt","acker","weide"];
 let ruralFocus=!!store.get("weltnius_rural_v1",false);
@@ -307,8 +307,13 @@ $("#startBtn").onclick=()=>{paint();document.getElementById("feed").scrollIntoVi
 const SECS=[["regional","Regional"],["eu","EU"],["usa","USA"],["ru","RU"],["cn","China"],["hot","Hot/Danger"],["asia","Asien-Ozeanien"],["rest","Fundstücke"]];
 function renderSecToggle(){const d=$("#secToggle");d.innerHTML="";SECS.forEach(([id,label])=>{const b=document.createElement("button");b.className="ghost tagbtn"+(hiddenSecs.includes(id)?"":" on");b.textContent=(hiddenSecs.includes(id)?"＋ ":"✓ ")+label;b.onclick=()=>{hiddenSecs=hiddenSecs.includes(id)?hiddenSecs.filter(x=>x!==id):[...hiddenSecs,id];store.set("weltnius_hiddenSecs_v1",hiddenSecs);applySecVis()};d.appendChild(b)})}
 function applySecVis(){SECS.forEach(([id])=>{const el=$("#sec-"+id);if(el)el.style.display=hiddenSecs.includes(id)?"none":""})}
-/* Gartenzeile kunterbunt, ausdrücklich kein Regenbogen: erdig-gedeckte Palette, zufällige Reihenfolge */
-(function(){const el=document.getElementById("garden");if(!el)return;const pal=["#7a3b2e","#3f6b4f","#31456e","#7a6227","#5d3a5d","#2f6f6f","#8a4b2a","#4a5d23"];const txt=el.textContent;el.textContent="";[...txt].forEach((ch,i)=>{const s=document.createElement("span");s.textContent=ch;if(ch!==" ")s.style.color=pal[(i*5+3)%pal.length];el.appendChild(s)})})();
+/* Gartenzeile kunterbunt, ausdrücklich kein Regenbogen: Palette je Theme für Lesbarkeit */
+function paintGarden(){const el=document.getElementById("garden");if(!el)return;
+const dark=document.documentElement.dataset.theme!=="light";
+const pal=dark?["#e88ca0","#7fd08c","#8aa8e8","#e8c85a","#c99ae8","#6fd3c9","#e89a5a","#a8c86a"]:["#8e2f45","#2f6b3a","#2f4d8e","#8e6b1a","#6b3a8e","#1f6b66","#a34d1f","#4d6b1f"];
+const txt=[...el.querySelectorAll("span")].map(s=>s.textContent).join("")||el.textContent;el.textContent="";
+[...txt].forEach((ch,i)=>{const s=document.createElement("span");s.textContent=ch;if(ch!==" ")s.style.color=pal[(i*5+3)%pal.length];el.appendChild(s)})}
+paintGarden();
 /* yt links */
 $$(".ytbox").forEach(box=>{const k=box.dataset.yt;(CONFIG.yt[k]||[]).forEach(([n,u])=>{const a=document.createElement("a");a.className="ytlink";a.href=u;a.target="_blank";a.rel="noopener";a.innerHTML=`<span class="cap">▶ ${esc(n)}</span><small>YouTube · Suche · Link</small>`;box.appendChild(a)})});
 /* fetch */
