@@ -123,7 +123,7 @@ a.ytlink small{color:var(--mut);font-size:.72rem;padding:0 8px 6px}
 <div class="card" style="border:0;margin:0">
 <h3>🗺️ Region wählen <span class="pill">für dich + geteilte HTML</span></h3>
 <iframe class="map" id="map" style="height:280px" src="https://www.openstreetmap.org/export/embed.html?bbox=13.4%2C50.9%2C14.1%2C51.25&layer=mapnik&marker=51.0504%2C13.7373"></iframe>
-<p class="note">Default: Dresden (51.0504, 13.7373), Umland = Sachsen. Pin per Koordinaten änderbar, wird gespeichert und in den Export übernommen.</p>
+<p class="note">Ortsnamen (z.B. Leipzig) oder Koordinaten eingeben, dann Pin setzen. Klick neben das Fenster schließt ohne Änderung.</p>
 <input type="text" id="lat" placeholder="Breite 51.0504" size="12"> <input type="text" id="lon" placeholder="Länge 13.7373" size="12"> <input type="text" id="place" placeholder="Ortsname (z.B. Dresden)" size="14">
 <div class="actions"><button id="setPin">Pin setzen</button><button id="resetPin" class="ghost">Dresden-Reset</button><button id="closePin" class="ghost">Schließen ✓</button></div>
 <p class="note" id="pinLabel"></p>
@@ -210,9 +210,25 @@ const pinDialog=()=>document.getElementById("pinDialog");
 $("#openPinTop").onclick=()=>{const d=pinDialog();if(d.showModal)d.showModal();else d.setAttribute("open","")};
 $("#openPin").onclick=()=>{const d=pinDialog();if(d.showModal)d.showModal();else d.setAttribute("open","")};
 $("#closePin").onclick=()=>{const d=pinDialog();if(d.close)d.close();else d.removeAttribute("open")};
+pinDialog().addEventListener("click",e=>{if(e.target===pinDialog())pinDialog().close()});
 let pin=store.get("weltnius_pin_v1",{lat:51.0504,lon:13.7373,place:"Dresden (Umland: Sachsen)"});
 setMap(pin.lat,pin.lon,pin.place);$("#lat").value=pin.lat;$("#lon").value=pin.lon;$("#place").value="Dresden";
-$("#setPin").onclick=()=>{const lat=parseFloat($("#lat").value),lon=parseFloat($("#lon").value);if(!isFinite(lat)||!isFinite(lon))return alert("Bitte gültige Koordinaten.");pin={lat,lon,place:$("#place").value||"Custom"};store.set("weltnius_pin_v1",pin);setMap(lat,lon,pin.place)};
+$("#setPin").onclick=async()=>{
+  let lat=parseFloat(($("#lat").value||"").replace(",",".")),lon=parseFloat(($("#lon").value||"").replace(",","."));
+  const place=($("#place").value||"").trim();
+  if(!isFinite(lat)||!isFinite(lon)){
+    if(!place)return alert("Bitte Koordinaten (z.B. 51.05, 13.74) oder einen Ortsnamen (z.B. Leipzig) eingeben.");
+    const btn=$("#setPin");btn.textContent="Suche …";
+    try{
+      const r=await fetchWithTimeout("https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=de&q="+encodeURIComponent(place));
+      const j=await r.json();
+      if(!j||!j.length){alert("Ort nicht gefunden: "+place);return}
+      lat=+j[0].lat;lon=+j[0].lon;$("#lat").value=lat.toFixed(4);$("#lon").value=lon.toFixed(4);
+    }catch(e){alert("Ortssuche gescheitert (Netz?). Tipp: Koordinaten gehen immer.");return}
+    finally{btn.textContent="Pin setzen"}
+  }
+  pin={lat,lon,place:place||`${lat}, ${lon}`};store.set("weltnius_pin_v1",pin);setMap(lat,lon,pin.place);
+};
 $("#resetPin").onclick=()=>{pin={lat:51.0504,lon:13.7373,place:"Dresden (Umland: Sachsen)"};store.set("weltnius_pin_v1",pin);setMap(pin.lat,pin.lon,pin.place)};
 /* tags */
 function allTags(){return [...CONFIG.topicTags,...customTags.filter(Boolean)]}
