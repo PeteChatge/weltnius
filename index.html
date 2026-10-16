@@ -148,7 +148,7 @@ a.ytlink small{color:var(--mut);font-size:.72rem;padding:0 8px 6px}
 <h3>⛽ Rohstoffpreise weltweit <span class="pill">Deutschland → Weltmächte → Krisenregionen → Rest</span></h3>
 <p class="note">Spaltenkopf klicken = sortieren (Ausreißer finden: grün = günstigstes, rot = teuerstes Land je Spalte). <b id="priceDate"></b> Richtwerte/Beispielstand — keine Live-Kurse. Abgleich: <a href="https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en" target="_blank" rel="noopener">EU Oil Bulletin</a> · <a href="https://www.adac.de/rund-ums-fahrzeug/auto-kaufen-verkaufen/gebrauchtwagen/spritpreise/" target="_blank" rel="noopener">ADAC</a> · <a href="https://www.bdew.de/" target="_blank" rel="noopener">BDEW</a> · <a href="https://www.globalpetrolprices.com/" target="_blank" rel="noopener">GlobalPetrolPrices</a></p>
 <div style="overflow-x:auto"><table id="priceTable"><thead><tr><th data-c="land">Land</th><th data-c="gruppe">Gruppe</th><th data-c="benzin">Benzin €/L</th><th data-c="diesel">Diesel €/L</th><th data-c="strom">Strom ct/kWh</th></tr></thead><tbody></tbody></table></div>
-<div class="actions"><button id="closePrice" class="ghost">Schließen ✓</button></div>
+<div class="actions"><label class="note">CSV vom Tracker: <input type="file" id="csvImport" accept=".csv,text/csv"></label><button id="resetPrices" class="ghost">Richtwerte zurücksetzen</button><button id="closePrice" class="ghost">Schließen ✓</button></div>
 </div>
 </dialog>
 <div class="wrap lists-wide"><div class="grid">
@@ -205,25 +205,31 @@ const CONFIG = {
     {match:["königsbrück","laussnitz","laußnitz","neukirch"],name:"Königsbrücker Stadtanzeiger",url:"https://www.koenigsbruecker-stadtanzeiger.de/",note:"Amts- und Heimatblatt der Verwaltungsgemeinschaft Königsbrück, Laußnitz, Neukirch — monatlich, kostenfrei, als PDF-Onlineausgabe."}
   ],
   /* Rohstoffpreise: Richtwerte (Beispielstand, keine Live-Kurse) — Abgleich via verlinkte Quellen */
-  prices: {updated:"Oktober 2026 (Beispiel-Richtwerte)",
+  prices: {updated:"Oktober 2026 (Tracker-Beispielwerte, energiepreis-tracker.py)",
     rows:[
-      {land:"Deutschland",gruppe:"Deutschland",benzin:1.82,diesel:1.70,strom:38},
-      {land:"USA",gruppe:"Weltmächte",benzin:0.95,diesel:1.05,strom:18},
+      {land:"Deutschland",gruppe:"Deutschland",benzin:1.74,diesel:1.62,strom:36},
+      {land:"USA",gruppe:"Weltmächte",benzin:0.88,diesel:0.98,strom:16},
       {land:"China",gruppe:"Weltmächte",benzin:1.05,diesel:0.95,strom:9},
       {land:"Russland",gruppe:"Weltmächte",benzin:0.65,diesel:0.60,strom:6},
+      {land:"Venezuela",gruppe:"Krisenregionen",benzin:0.02,diesel:0.01,strom:0.5},
+      {land:"Iran",gruppe:"Krisenregionen",benzin:0.03,diesel:0.01,strom:0.3},
       {land:"Israel",gruppe:"Krisenregionen",benzin:1.95,diesel:1.85,strom:20},
       {land:"Türkei",gruppe:"Krisenregionen",benzin:1.10,diesel:1.05,strom:12},
       {land:"Indien",gruppe:"Krisenregionen",benzin:1.15,diesel:1.00,strom:8},
       {land:"Ukraine",gruppe:"Krisenregionen",benzin:1.35,diesel:1.30,strom:10},
-      {land:"Frankreich",gruppe:"Rest",benzin:1.85,diesel:1.75,strom:25},
-      {land:"Polen",gruppe:"Rest",benzin:1.55,diesel:1.50,strom:22},
-      {land:"Österreich",gruppe:"Rest",benzin:1.65,diesel:1.60,strom:24},
-      {land:"Schweiz",gruppe:"Rest",benzin:1.90,diesel:2.00,strom:30},
-      {land:"Italien",gruppe:"Rest",benzin:1.90,diesel:1.78,strom:30},
+      {land:"Frankreich",gruppe:"Rest",benzin:1.78,diesel:1.69,strom:26},
+      {land:"Polen",gruppe:"Rest",benzin:1.48,diesel:1.50,strom:21},
+      {land:"Österreich",gruppe:"Rest",benzin:1.56,diesel:1.58,strom:25},
+      {land:"Schweiz",gruppe:"Rest",benzin:1.81,diesel:1.92,strom:32},
+      {land:"Italien",gruppe:"Rest",benzin:1.82,diesel:1.73,strom:34},
+      {land:"Spanien",gruppe:"Rest",benzin:1.61,diesel:1.49,strom:22},
+      {land:"Niederlande",gruppe:"Rest",benzin:1.94,diesel:1.71,strom:38},
+      {land:"Dänemark",gruppe:"Rest",benzin:2.02,diesel:1.85,strom:39},
       {land:"UK",gruppe:"Rest",benzin:1.75,diesel:1.85,strom:32},
       {land:"Norwegen",gruppe:"Rest",benzin:2.10,diesel:1.95,strom:12},
       {land:"Japan",gruppe:"Rest",benzin:1.30,diesel:1.15,strom:25},
       {land:"Südkorea",gruppe:"Rest",benzin:1.45,diesel:1.30,strom:15},
+      {land:"Hongkong",gruppe:"Rest",benzin:2.98,diesel:2.75,strom:20},
       {land:"Australien",gruppe:"Rest",benzin:1.35,diesel:1.40,strom:28},
       {land:"Brasilien",gruppe:"Rest",benzin:1.05,diesel:1.00,strom:18},
       {land:"Südafrika",gruppe:"Rest",benzin:1.20,diesel:1.15,strom:14}
@@ -556,31 +562,54 @@ applyTick();
 const PRICE_TRIGGERS=["benzinpreis","dieselpreis","strompreis","gaspreis","oelpreis","ölpreis","heizoel","heizöl","spritpreis","energiepreis","rohstoffpreis","kraftstoff"];
 const GORD={"Deutschland":0,"Weltmächte":1,"Krisenregionen":2,"Rest":3};
 let pSort={c:"gruppe",d:1},priceWas=false;
+function priceRows(){const o=store.get("weltnius_prices_v1",null);return o&&o.rows&&o.rows.length?{updated:o.updated+" (CSV-Import)",rows:o.rows}:CONFIG.prices}
+function parsePriceCSV(t){
+  const split=row=>{const out=[];let cur="",qt=false;for(const ch of row){if(ch==='"'){qt=!qt;continue}if(ch===","&&!qt){out.push(cur);cur="";continue}cur+=ch}out.push(cur);return out.map(s=>s.trim())};
+  const lines=t.replace(/^\uFEFF/,"").trim().split(/\r?\n/);if(lines.length<2)throw new Error("Datei leer");
+  const H=split(lines[0]).map(h=>h.replace(/\s/g,"").toLowerCase());
+  const idx=n=>H.findIndex(h=>h.includes(n));
+  const iL=idx("land"),iB=idx("benzin(€"),iD=idx("diesel(€"),iS=idx("strom(€"),iSt=idx("stand");
+  if(iL<0||iB<0)throw new Error("Spalten Land/Benzin fehlen");
+  const known={};CONFIG.prices.rows.forEach(r=>known[r.land.toLowerCase()]=r.gruppe);
+  const num=s=>{const v=parseFloat(String(s==null?"":s).replace(",","."));return isFinite(v)?v:null};
+  const rows=[];
+  for(let i=1;i<lines.length;i++){if(!lines[i].trim())continue;const c=split(lines[i]);const land=(c[iL]||"").replace(/^"|"$/g,"");if(!land)continue;
+    const se=iS>=0?num(c[iS]):null;
+    rows.push({land,gruppe:known[land.toLowerCase()]||"Rest",benzin:num(c[iB]),diesel:iD>=0?num(c[iD]):null,strom:se!=null?+((se*100).toFixed(1)):null})}
+  if(!rows.length)throw new Error("keine Datenzeilen");
+  let updated="CSV "+new Date().toLocaleDateString("de-DE");if(iSt>=0){const c=split(lines[1]);if(c[iSt])updated="CSV-Stand "+c[iSt]}
+  return {updated,rows};
+}
 function renderPrices(){
   document.querySelectorAll("#priceTable th").forEach(th=>{if(!th.dataset.label)th.dataset.label=th.textContent});
-  const rows=[...CONFIG.prices.rows];
+  const P=priceRows();
+  const rows=[...P.rows];
   rows.sort((a,b)=>{let r;const c=pSort.c;
     if(c==="land"||c==="gruppe")r=String(a[c]).localeCompare(String(b[c]),"de");
     else r=(a[c]??1e9)-(b[c]??1e9);
     if(r===0)r=((GORD[a.gruppe]??9)-(GORD[b.gruppe]??9))||a.land.localeCompare(b.land,"de");
     return r*pSort.d});
   const mm={};["benzin","diesel","strom"].forEach(c=>{const v=rows.map(r=>r[c]).filter(v=>v!=null);mm[c]=[Math.min(...v),Math.max(...v)]});
-  document.querySelector("#priceTable tbody").innerHTML=rows.map(r=>`<tr><td>${esc(r.land)}</td><td>${esc(r.gruppe)}</td>${["benzin","diesel","strom"].map(c=>`<td class="num${r[c]==null?"":r[c]===mm[c][0]?" pmin":r[c]===mm[c][1]?" pmax":""}">${r[c]==null?"–":r[c].toFixed(c==="strom"?0:2)}</td>`).join("")}</tr>`).join("");
+  document.querySelector("#priceTable tbody").innerHTML=rows.map(r=>`<tr><td>${esc(r.land)}</td><td>${esc(r.gruppe)}</td>${["benzin","diesel","strom"].map(c=>`<td class="num${r[c]==null?"":r[c]===mm[c][0]?" pmin":r[c]===mm[c][1]?" pmax":""}">${r[c]==null?"–":r[c].toFixed(c==="strom"?(r[c]<10?1:0):2)}</td>`).join("")}</tr>`).join("");
   document.querySelectorAll("#priceTable th").forEach(th=>{th.textContent=th.dataset.label+(pSort.c===th.dataset.c?(pSort.d>0?" ▲":" ▼"):"")});
-  $("#priceDate").textContent="Stand: "+CONFIG.prices.updated+" ·";
+  $("#priceDate").textContent="Stand: "+P.updated+" ·";
 }
 document.querySelectorAll("#priceTable th").forEach(th=>th.onclick=()=>{const c=th.dataset.c;if(pSort.c===c)pSort.d*=-1;else pSort={c,d:1};renderPrices()});
 function openPrice(){renderPrices();const d=document.getElementById("priceDialog");if(!d.open){if(d.showModal)d.showModal();else d.setAttribute("open","")}}
 $("#openPriceTop").onclick=openPrice;
+$("#csvImport").onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=()=>{try{const P=parsePriceCSV(String(rd.result));store.set("weltnius_prices_v1",P);renderPrices()}catch(err){alert("CSV nicht lesbar: "+err.message)}};
+  rd.readAsText(f,"utf-8");e.target.value=""};
+$("#resetPrices").onclick=()=>{store.set("weltnius_prices_v1",null);renderPrices()};
 $("#closePrice").onclick=()=>{const d=document.getElementById("priceDialog");if(d.close)d.close();else d.removeAttribute("open")};
 document.getElementById("priceDialog").addEventListener("click",e=>{const d=document.getElementById("priceDialog");if(e.target===d)d.close()});
 function checkPriceTrigger(){const hit=PRICE_TRIGGERS.some(t=>norm($("#q").value).includes(t));if(hit&&!priceWas)openPrice();priceWas=hit}
 /* Export: aktuelle HTML mit allen Funktionen + Inhalten teilen / selbst reproduzieren */
 $("#exportBtn").onclick=()=>{
   try{
-    const snap={seen,activeTags,customTags,onlyUnread,days,hiddenSecs,theme:document.documentElement.dataset.theme,pin,tickSecs,tickPaused,ruralFocus,cartoKey,exportedAt:new Date().toISOString(),articleCount:ALL.length};
+    const snap={seen,activeTags,customTags,onlyUnread,days,hiddenSecs,theme:document.documentElement.dataset.theme,pin,tickSecs,tickPaused,ruralFocus,cartoKey,prices:store.get("weltnius_prices_v1",null),exportedAt:new Date().toISOString(),articleCount:ALL.length};
     const snapJson=JSON.stringify(snap).replace(/</g,"\\u003c");
-    const seed=`<script>try{(function(s){var k=function(x){return "weltnius_"+x};var put=function(key,val){try{localStorage.setItem(k(key),JSON.stringify(val))}catch(e){}};put("seen_v1",s.seen||{});put("tags_on_v1",s.activeTags||[]);put("custom_v1",s.customTags||[]);put("onlyUnread_v1",s.onlyUnread);put("days_v1",s.days||7);put("hiddenSecs_v1",s.hiddenSecs||[]);put("theme_v1",s.theme||"dark");put("pin_v1",s.pin||{});put("tickSecs_v1",s.tickSecs||45);put("tickPaused_v1",!!s.tickPaused);put("rural_v1",!!s.ruralFocus);put("cartoKey_v1",s.cartoKey||"");})(JSON.parse(${JSON.stringify(snapJson)}))}catch(e){}<\/script>`;
+    const seed=`<script>try{(function(s){var k=function(x){return "weltnius_"+x};var put=function(key,val){try{localStorage.setItem(k(key),JSON.stringify(val))}catch(e){}};put("seen_v1",s.seen||{});put("tags_on_v1",s.activeTags||[]);put("custom_v1",s.customTags||[]);put("onlyUnread_v1",s.onlyUnread);put("days_v1",s.days||7);put("hiddenSecs_v1",s.hiddenSecs||[]);put("theme_v1",s.theme||"dark");put("pin_v1",s.pin||{});put("tickSecs_v1",s.tickSecs||45);put("tickPaused_v1",!!s.tickPaused);put("rural_v1",!!s.ruralFocus);put("cartoKey_v1",s.cartoKey||"");put("prices_v1",s.prices||null);})(JSON.parse(${JSON.stringify(snapJson)}))}catch(e){}<\/script>`;
     let html="<!DOCTYPE html>\n"+document.documentElement.outerHTML;
     html=html.replace(/<button id="reload"[^>]*>.*?<\/button>/s,'<button id="reload">↻ Neu laden</button>');
     html=html.replace(/<dialog([^>]*) open(="")?/, '<dialog$1');
