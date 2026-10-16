@@ -148,7 +148,8 @@ a.ytlink small{color:var(--mut);font-size:.72rem;padding:0 8px 6px}
 <h3>⛽ Rohstoffpreise weltweit <span class="pill">Deutschland → Weltmächte → Krisenregionen → Rest</span></h3>
 <p class="note">Spaltenkopf klicken = sortieren (Ausreißer finden: grün = günstigstes, rot = teuerstes Land je Spalte). <b id="priceDate"></b> Richtwerte/Beispielstand — keine Live-Kurse. Abgleich: <a href="https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en" target="_blank" rel="noopener">EU Oil Bulletin</a> · <a href="https://www.adac.de/rund-ums-fahrzeug/auto-kaufen-verkaufen/gebrauchtwagen/spritpreise/" target="_blank" rel="noopener">ADAC</a> · <a href="https://www.bdew.de/" target="_blank" rel="noopener">BDEW</a> · <a href="https://www.globalpetrolprices.com/" target="_blank" rel="noopener">GlobalPetrolPrices</a></p>
 <div style="overflow-x:auto"><table id="priceTable"><thead><tr><th data-c="land">Land</th><th data-c="gruppe">Gruppe</th><th data-c="benzin">Benzin €/L</th><th data-c="diesel">Diesel €/L</th><th data-c="strom">Strom ct/kWh</th></tr></thead><tbody></tbody></table></div>
-<div class="actions"><label class="note">CSV vom Tracker: <input type="file" id="csvImport" accept=".csv,text/csv"></label><button id="resetPrices" class="ghost">Richtwerte zurücksetzen</button><button id="closePrice" class="ghost">Schließen ✓</button></div>
+<div class="actions"><label class="note">CSV vom Tracker: <input type="file" id="csvImport" accept=".csv,text/csv"></label><button id="resetPrices" class="ghost">Richtwerte zurücksetzen</button><button id="fxRefresh" class="ghost" title="Tagesaktueller EUR→USD-Kurs (open.er-api.com, ohne Key)">🔄 USD-Kurs</button><button id="csvExport" class="ghost" title="Aktuelle Tabelle als CSV laden (Tracker-Format)">CSV exportieren</button><button id="closePrice" class="ghost">Schließen ✓</button></div>
+<p class="note" id="fxNote"></p>
 </div>
 </dialog>
 <div class="wrap lists-wide"><div class="grid">
@@ -225,6 +226,34 @@ const CONFIG = {
       {land:"Spanien",gruppe:"Rest",benzin:1.61,diesel:1.49,strom:22},
       {land:"Niederlande",gruppe:"Rest",benzin:1.94,diesel:1.71,strom:38},
       {land:"Dänemark",gruppe:"Rest",benzin:2.02,diesel:1.85,strom:39},
+      {land:"Irland",gruppe:"Rest",benzin:1.85,diesel:1.75,strom:35},
+      {land:"Luxemburg",gruppe:"Rest",benzin:1.65,diesel:1.60,strom:28},
+      {land:"Malta",gruppe:"Rest",benzin:1.35,diesel:1.30,strom:30},
+      {land:"Zypern",gruppe:"Rest",benzin:1.50,diesel:1.55,strom:32},
+      {land:"Estland",gruppe:"Rest",benzin:1.70,diesel:1.55,strom:28},
+      {land:"Lettland",gruppe:"Rest",benzin:1.65,diesel:1.55,strom:30},
+      {land:"Litauen",gruppe:"Rest",benzin:1.55,diesel:1.50,strom:28},
+      {land:"Slowakei",gruppe:"Rest",benzin:1.60,diesel:1.50,strom:22},
+      {land:"Slowenien",gruppe:"Rest",benzin:1.55,diesel:1.60,strom:25},
+      {land:"Bulgarien",gruppe:"Rest",benzin:1.40,diesel:1.42,strom:15},
+      {land:"Belgien",gruppe:"Rest",benzin:1.75,diesel:1.80,strom:33},
+      {land:"Portugal",gruppe:"Rest",benzin:1.80,diesel:1.65,strom:25},
+      {land:"Griechenland",gruppe:"Rest",benzin:1.95,diesel:1.70,strom:28},
+      {land:"Tschechien",gruppe:"Rest",benzin:1.55,diesel:1.50,strom:28},
+      {land:"Ungarn",gruppe:"Rest",benzin:1.50,diesel:1.52,strom:12},
+      {land:"Rumänien",gruppe:"Rest",benzin:1.45,diesel:1.45,strom:18},
+      {land:"Kroatien",gruppe:"Rest",benzin:1.60,diesel:1.55,strom:20},
+      {land:"Schweden",gruppe:"Rest",benzin:1.85,diesel:1.80,strom:20},
+      {land:"Finnland",gruppe:"Rest",benzin:1.90,diesel:1.75,strom:22},
+      {land:"Kanada",gruppe:"Rest",benzin:1.15,diesel:1.20,strom:12},
+      {land:"Mexiko",gruppe:"Rest",benzin:1.05,diesel:1.05,strom:10},
+      {land:"Argentinien",gruppe:"Rest",benzin:0.90,diesel:0.85,strom:8},
+      {land:"Ägypten",gruppe:"Rest",benzin:0.45,diesel:0.35,strom:5},
+      {land:"Nigeria",gruppe:"Rest",benzin:0.55,diesel:0.60,strom:8},
+      {land:"Saudi-Arabien",gruppe:"Rest",benzin:0.60,diesel:0.55,strom:7},
+      {land:"VAE",gruppe:"Rest",benzin:0.75,diesel:0.80,strom:9},
+      {land:"Thailand",gruppe:"Rest",benzin:1.10,diesel:1.00,strom:11},
+      {land:"Indonesien",gruppe:"Rest",benzin:0.85,diesel:0.80,strom:9},
       {land:"UK",gruppe:"Rest",benzin:1.75,diesel:1.85,strom:32},
       {land:"Norwegen",gruppe:"Rest",benzin:2.10,diesel:1.95,strom:12},
       {land:"Japan",gruppe:"Rest",benzin:1.30,diesel:1.15,strom:25},
@@ -568,14 +597,14 @@ function parsePriceCSV(t){
   const lines=t.replace(/^\uFEFF/,"").trim().split(/\r?\n/);if(lines.length<2)throw new Error("Datei leer");
   const H=split(lines[0]).map(h=>h.replace(/\s/g,"").toLowerCase());
   const idx=n=>H.findIndex(h=>h.includes(n));
-  const iL=idx("land"),iB=idx("benzin(€"),iD=idx("diesel(€"),iS=idx("strom(€"),iSt=idx("stand");
+  const iL=idx("land"),iB=idx("benzin(€"),iD=idx("diesel(€"),iS=idx("strom(€"),iSt=idx("stand"),iG=idx("gruppe");
   if(iL<0||iB<0)throw new Error("Spalten Land/Benzin fehlen");
   const known={};CONFIG.prices.rows.forEach(r=>known[r.land.toLowerCase()]=r.gruppe);
   const num=s=>{const v=parseFloat(String(s==null?"":s).replace(",","."));return isFinite(v)?v:null};
   const rows=[];
   for(let i=1;i<lines.length;i++){if(!lines[i].trim())continue;const c=split(lines[i]);const land=(c[iL]||"").replace(/^"|"$/g,"");if(!land)continue;
     const se=iS>=0?num(c[iS]):null;
-    rows.push({land,gruppe:known[land.toLowerCase()]||"Rest",benzin:num(c[iB]),diesel:iD>=0?num(c[iD]):null,strom:se!=null?+((se*100).toFixed(1)):null})}
+    rows.push({land,gruppe:(iG>=0&&c[iG]?c[iG]:null)||known[land.toLowerCase()]||"Rest",benzin:num(c[iB]),diesel:iD>=0?num(c[iD]):null,strom:se!=null?+((se*100).toFixed(1)):null})}
   if(!rows.length)throw new Error("keine Datenzeilen");
   let updated="CSV "+new Date().toLocaleDateString("de-DE");if(iSt>=0){const c=split(lines[1]);if(c[iSt])updated="CSV-Stand "+c[iSt]}
   return {updated,rows};
@@ -600,6 +629,28 @@ $("#openPriceTop").onclick=openPrice;
 $("#csvImport").onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const rd=new FileReader();
   rd.onload=()=>{try{const P=parsePriceCSV(String(rd.result));store.set("weltnius_prices_v1",P);renderPrices()}catch(err){alert("CSV nicht lesbar: "+err.message)}};
   rd.readAsText(f,"utf-8");e.target.value=""};
+let fxRate=1.08,fxDate="";
+$("#fxRefresh").onclick=async()=>{
+  try{
+    const r=await fetchWithTimeout("https://open.er-api.com/v6/latest/EUR",12000);
+    const j=await r.json();
+    if(j.result==="success"&&j.rates&&j.rates.USD){fxRate=j.rates.USD;fxDate=(j.time_last_update_utc||"").slice(0,16);
+      $("#fxNote").textContent=`Wechselkurs: 1 € = ${fxRate.toFixed(4)} $ (${fxDate||"aktuell"}) — fließt in den CSV-Export ein.`}
+    else throw new Error("rate");
+  }catch{$("#fxNote").textContent="Kurs offline — Fallback 1 € = 1,08 $."}
+};
+$("#csvExport").onclick=()=>{
+  const P=priceRows();
+  const q=s=>`"${String(s==null?"":s).replace(/"/g,'""')}"`;
+  const st=new Date().toISOString().slice(0,16).replace("T"," ");
+  const lines=[["Land","Benzin (€/L)","Benzin ($/L)","Diesel (€/L)","Diesel ($/L)","Strom (€/kWh)","Strom ($/kWh)","Gruppe","Stand"].join(",")];
+  P.rows.forEach(r=>{const s=r.strom!=null?r.strom/100:null;
+    lines.push([q(r.land),r.benzin??"",r.benzin!=null?+(r.benzin*fxRate).toFixed(2):"",r.diesel??"",r.diesel!=null?+(r.diesel*fxRate).toFixed(2):"",s??"",s!=null?+(s*fxRate).toFixed(3):"",q(r.gruppe||"Rest"),q(st)].join(","))});
+  const blob=new Blob(["﻿"+lines.join("\n")],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download=`weltweite_energiepreise_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},800);
+};
 $("#resetPrices").onclick=()=>{store.set("weltnius_prices_v1",null);renderPrices()};
 $("#closePrice").onclick=()=>{const d=document.getElementById("priceDialog");if(d.close)d.close();else d.removeAttribute("open")};
 document.getElementById("priceDialog").addEventListener("click",e=>{const d=document.getElementById("priceDialog");if(e.target===d)d.close()});
