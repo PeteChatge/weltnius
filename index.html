@@ -13,7 +13,11 @@ header{position:sticky;top:0;z-index:10;background:var(--bg2);border-bottom:1px 
 .mast{text-align:left;padding:10px 0 2px}
 .mastrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .masttitle{flex:1 1 220px;min-width:0;text-align:left}
-.mastbtns{display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
+.mastbtns{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;min-width:300px;max-width:480px}
+.mastbtns button,.mastbtns a.tbtn{margin:0;padding:10px 6px;font-size:.85rem;font-weight:700;text-align:center;border-radius:10px;background:linear-gradient(180deg,var(--card),var(--bg2));border:1px solid var(--line);box-shadow:0 3px 0 rgba(0,0,0,.4);color:var(--txt);letter-spacing:.3px}
+.mastbtns button:active,.mastbtns a.tbtn:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.4)}
+[data-theme="light"] .mastbtns button,[data-theme="light"] .mastbtns a.tbtn{box-shadow:0 3px 0 rgba(30,42,36,.3)}
+.mastbtns button.ghost{background:linear-gradient(180deg,var(--card),var(--bg2))}
 a.tbtn{display:inline-block;background:transparent;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:.9rem;cursor:pointer;text-decoration:none}
 a.tbtn:hover{border-color:var(--acc)}
 h1{margin:0;font-family:Georgia,"Times New Roman",serif;font-size:clamp(2.6rem,6vw,4.2rem);letter-spacing:6px;font-weight:800}h1 span{color:var(--acc)}
@@ -88,7 +92,8 @@ img{max-width:100%;height:auto}
   #mapWrap #map{height:220px}
   .tblabel{display:none}
   button{padding:6px 9px;font-size:.82rem}
-  .mastbtns{gap:5px;justify-content:flex-start}
+  .mastbtns{gap:5px;justify-content:flex-start;min-width:0;max-width:none;grid-template-columns:repeat(4,minmax(0,1fr));width:100%}
+  .mastbtns button,.mastbtns a.tbtn{padding:8px 4px;font-size:.78rem}
   .mastbtns a.tbtn{padding:6px 9px;font-size:.82rem}
   iframe.map{height:140px}
   .note{font-size:.75rem}
