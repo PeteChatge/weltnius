@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wetternius — Wissenschaft vs. 100-jähriger Kalender</title>
+    <!-- Leaflet CSS für die OpenStreetMap-Karte -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <style>
+        :root {
+            --primary: #0055aa;
+            --bg: #f4f7f6;
+            --card-bg: #ffffff;
+            --text: #333333;
+            --science-color: #2b78e4;
+            --tradition-color: #d97736;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .back {
+            display: inline-block;
+            margin-top: 8px;
+            font-size: 0.9rem;
+            color: var(--primary);
+        }
+
+        /* Karten-Styling */
+        #map-container {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+        }
+
+        #map {
+            height: 350px;
+            width: 100%;
+            border-radius: 8px;
+            position: relative;
+            z-index: 0;
+        }
+
+        .map-hint {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        /* Grid für die Gegenüberstellung */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+
+        @media (max-width: 768px) {
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border-top: 6px solid var(--primary);
+        }
+
+        .card.science {
+            border-top-color: var(--science-color);
+        }
+
+        .card.tradition {
+            border-top-color: var(--tradition-color);
+        }
+
+        h2 {
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .science h2 { color: var(--science-color); }
+        .tradition h2 { color: var(--tradition-color); }
+
+        .weather-info, .calendar-info {
+            margin-top: 20px;
+            line-height: 1.6;
+        }
+
+        .weather-data-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .weather-data-row:last-child {
+            border-bottom: none;
+        }
+
+        .value {
+            font-weight: bold;
+            text-align: right;
+        }
+
+        .badge {
+            background: #eee;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        .rule-box {
+            background: #fff8f2;
+            border-left: 4px solid var(--tradition-color);
+            padding: 12px;
+            margin-top: 15px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Wetter-Vergleich: Heute vs. 100-jähriger Kalender</h1>
+        <p>Wähle einen Ort auf der Karte aus, um die Echtzeit-Wissenschaft mit der jahrhundertealten Tradition zu vergleichen.</p>
+        <a class="back" href="index.html">← zurück zu WELTNIUS</a>
+    </header>
+
+    <!-- OSM Picker Sektion -->
+    <div id="map-container">
+        <div id="map"></div>
+        <div class="map-hint">Klicke irgendwo auf die Karte (oder ziehe den Marker), um den Standort zu wechseln. Aktuelle Auswahl: <span id="location-display">Dresden, Deutschland</span></div>
+    </div>
+
+    <!-- Gegenüberstellung -->
+    <div class="comparison-grid">
+
+        <!-- Kasten 1: Wissenschaft (Echtzeit-API) -->
+        <div class="card science">
+            <h2>📡 Wissenschaftliche Echtzeitdaten</h2>
+            <div id="loading-weather">Daten werden geladen...</div>
+            <div id="weather-content" class="weather-info" style="display: none;">
+                <div class="weather-data-row">
+                    <span>Temperatur:</span>
+                    <span class="value" id="temp-val">-- °C</span>
+                </div>
+                <div class="weather-data-row">
+                    <span>Wetterlage:</span>
+                    <span class="value" id="condition-val">--</span>
+                </div>
+                <div class="weather-data-row">
+                    <span>Windgeschwindigkeit:</span>
+                    <span class="value" id="wind-val">-- km/h</span>
+                </div>
+                <div class="weather-data-row">
+                    <span>Relative Luftfeuchtigkeit:</span>
+                    <span class="value" id="humidity-val">-- %</span>
+                </div>
+                <div style="margin-top: 15px; font-size: 0.8rem; color: #777; text-align: right;">
+                    Quelle: Open-Meteo API (ohne Key)
+                </div>
+            </div>
+        </div>
+
+        <!-- Kasten 2: Tradition (100-jähriger Kalender) -->
+        <div class="card tradition">
+            <h2>📜 100-jähriger Kalender</h2>
+            <div class="calendar-info">
+                <div class="weather-data-row">
+                    <span>Aktuelles Planetenjahr:</span>
+                    <span class="value badge" style="background-color: #fcece2; color: var(--tradition-color);" id="planet-year">--</span>
+                </div>
+                <div class="weather-data-row">
+                    <span>Allgemeiner Charakter:</span>
+                    <span class="value" id="planet-char">--</span>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <strong>Vorgabe für den aktuellen Monat (<span id="current-month-name">--</span>):</strong>
+                    <div class="rule-box" id="monthly-rule">
+                        Lade traditionelle Monatsregel...
+                    </div>
+                </div>
+                <div style="margin-top: 15px; font-size: 0.8rem; color: #777; text-align: right;">
+                    Basis: Historischer Knauer-Zyklus (Brauchtum, keine Prognose)
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Leaflet JS für OpenStreetMap -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<script>
+    // 1. Initialisierung der Karte (Standard: Dresden, passend zur Gazette)
+    let defaultLat = 51.0504;
+    let defaultLon = 13.7373;
+
+    const map = L.map('map', { worldCopyJump: true }).setView([defaultLat, defaultLon], 10);
+
+    // Esri World Street Map (ohne Key einbettbar; OSM-Direktkacheln sperren keylose file://-Nutzung)
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: '&copy; Esri, HERE, Garmin, OpenStreetMap-Mitwirkende'
+    }).addTo(map);
+
+    let marker = L.marker([defaultLat, defaultLon], {draggable: true}).addTo(map);
+
+    function setPlace(lat, lon) {
+        lat = +lat; lon = +lon;
+        marker.setLatLng([lat, lon]);
+        map.setView([lat, lon], Math.max(map.getZoom(), 10));
+        fetchWeather(lat, lon);
+        updateLocationText(lat, lon);
+    }
+
+    map.on('click', e => setPlace(e.latlng.lat, e.latlng.lng));
+    marker.on('dragend', () => { const p = marker.getLatLng(); setPlace(p.lat, p.lng); });
+
+    // 2. Wetter-Codes Übersetzer für Open-Meteo
+    function interpretWmoCode(code) {
+        if (code === 0) return "Klarer Himmel";
+        if ([1, 2, 3].includes(code)) return "Leicht bewölkt / Bewölkt";
+        if ([45, 48].includes(code)) return "Neblig";
+        if ([51, 53, 55].includes(code)) return "Nieselregen";
+        if ([56, 57].includes(code)) return "Gefrierender Nieselregen";
+        if ([61, 63, 65].includes(code)) return "Regen";
+        if ([66, 67].includes(code)) return "Gefrierender Regen";
+        if ([71, 73, 75, 77].includes(code)) return "Schneefall / Schneegriesel";
+        if ([80, 81, 82].includes(code)) return "Regenschauer";
+        if ([85, 86].includes(code)) return "Schneeschauer";
+        if ([95, 96, 99].includes(code)) return "Gewitter";
+        return "Unbekannt (" + code + ")";
+    }
+
+    // 3. Live Wetterdaten von Open-Meteo abrufen (kostenlos, ohne Key)
+    async function fetchWeather(lat, lon) {
+        document.getElementById('loading-weather').style.display = 'block';
+        document.getElementById('loading-weather').innerText = 'Daten werden geladen...';
+        document.getElementById('weather-content').style.display = 'none';
+
+        try {
+            const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m`);
+            const data = await response.json();
+
+            if(data && data.current) {
+                document.getElementById('temp-val').innerText = `${data.current.temperature_2m} °C`;
+                document.getElementById('condition-val').innerText = interpretWmoCode(data.current.weather_code);
+                document.getElementById('wind-val').innerText = `${data.current.wind_speed_10m} km/h`;
+                document.getElementById('humidity-val').innerText = `${data.current.relative_humidity_2m} %`;
+
+                document.getElementById('loading-weather').style.display = 'none';
+                document.getElementById('weather-content').style.display = 'block';
+            }
+        } catch (error) {
+            document.getElementById('loading-weather').innerText = 'Fehler beim Laden der Wetterdaten (Netz nötig).';
+            console.error(error);
+        }
+    }
+
+    // 4. Ortstext über Reverse Geocoding aktualisieren (Nominatim, ohne Key)
+    async function updateLocationText(lat, lon) {
+        try {
+            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&accept-language=de&lat=${lat}&lon=${lon}`);
+            const data = await response.json();
+            if(data && data.display_name) {
+                // Kürzen für die Anzeige: Ort + Land
+                const parts = data.display_name.split(',').map(s => s.trim());
+                const a = data.address || {};
+                const city = a.village || a.hamlet || a.town || a.city || a.municipality || a.county || parts[0];
+                const country = a.country || parts[parts.length - 1];
+                document.getElementById('location-display').innerText = `${city}, ${country}`;
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    // 5. 100-jähriger Kalender: Planetenjahr + Monatsregeln (Brauchtum)
+    // Zyklus (chaldäische Reihe, Anker: Merkurjahr 2026/2027 wie überliefert)
+    const PLANET_CYCLE = ["Merkur", "Mond", "Saturn", "Jupiter", "Mars", "Sonne", "Venus"];
+    const PLANET_CHAR = {
+        "Merkur": "Gilt traditionell als eher trocken, oft mit rauen Ostwinden im Frühjahr und unbeständigem, feuchtem Sommerausklang.",
+        "Mond": "Gilt traditionell als feucht und fruchtbar, mit viel Regen und üppigem Wachstum.",
+        "Saturn": "Gilt traditionell als kalt und rau, mit strengem Winter und kühlem Sommer.",
+        "Jupiter": "Gilt traditionell als gemäßigt und gesegnet, mit gutem Wein und reicher Ernte.",
+        "Mars": "Gilt traditionell als warm und trocken, mit heißen Sommern und Gewittern.",
+        "Sonne": "Gilt traditionell als warm und hell, mit trockener Witterung und guter Ernte.",
+        "Venus": "Gilt traditionell als mild und feucht, mit sanftem Frühjahr und fruchtbarem Jahr."
+    };
+    // Monatsregeln im Merkurjahr-Charakter (Bauernregel-Ton, keine Prognose)
+    const MONTH_RULES = [
+        "Januar: Strenger Frost schmiedet das Jahr — viel Schnee verspricht volle Scheunen.",
+        "Februar: Rauer Ostwind fegt die Felder — was friert, fault nicht.",
+        "März: Wechselhaft mit letzten Frösten — Märzenschnee tut der Saat weh.",
+        "April: April, April, macht was er will — ein nasser April füllt Speicher und Fass.",
+        "Mai: Kühle Nächte, warme Tage — die Eisheiligen prüfen jeden Garten.",
+        "Juni: Frühsommer mit Schauern — Juniregen bringt reichen Segen.",
+        "Juli: Hundstage entscheiden — ist der Juli heiß, wird der Herbst zum Preis.",
+        "August: Erntemond mit Gewittern — Augustsonne kocht, Augustregen verdirbt.",
+        "September: Unbeständiger Ausklang — Septemberregen folgt dem Sommerdegen.",
+        "Oktober: Nebel und erste Fröste — Oktoberrau legt den Grund fürs nächste Jahr.",
+        "November: Trüb und feucht — Novembernebel kündet strengen Winter an.",
+        "Dezember: Frost und Dunkelheit — weißer Dezember, fruchtbares Jahr."
+    ];
+
+    function renderCalendar() {
+        const now = new Date();
+        const m = now.getMonth();
+        // Hinweis: Planetenjahr läuft ca. 21. März bis 20. März
+        const astroStart = (now.getMonth() > 2 || (now.getMonth() === 2 && now.getDate() >= 21)) ? now.getFullYear() : now.getFullYear() - 1;
+        const idx = ((astroStart - 2026) % 7 + 7) % 7;
+        const planet = PLANET_CYCLE[idx];
+        document.getElementById('planet-year').innerText = `${planet}jahr (${astroStart}/${astroStart + 1})`;
+        document.getElementById('planet-char').innerText = PLANET_CHAR[planet];
+        const monthNames = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+        document.getElementById('current-month-name').innerText = monthNames[m];
+        document.getElementById('monthly-rule').innerText = MONTH_RULES[m];
+    }
+
+    // 6. Start
+    renderCalendar();
+    fetchWeather(defaultLat, defaultLon);
+    updateLocationText(defaultLat, defaultLon);
+</script>
+</body>
+</html>
